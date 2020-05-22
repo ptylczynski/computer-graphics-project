@@ -98,9 +98,9 @@ namespace objects {
 	std::map<objects::Figure, int> textureUnitNumberB;
 	std::map<objects::Figure, GLuint> textureMap;
 	std::map<objects::Figure, GLuint> specularMap;
-	std::map<objects::Figure, float*> vertices;
-	std::map<objects::Figure, float*> normals;
-	std::map<objects::Figure, float*> texCoords;
+	std::map<objects::Figure, std::vector<float> > vertices;
+	std::map<objects::Figure, std::vector<float> > normals;
+	std::map<objects::Figure, std::vector<float> > texCoords;
 	std::map<objects::Figure, int> vertexCount;
 }
 
@@ -196,12 +196,13 @@ namespace render {
 		int textureUnitB = objects::textureUnitB[figure];
 		int textureUnitNumberA = objects::textureUnitNumberA[figure];
 		int textureUnitNumberB = objects::textureUnitNumberB[figure];
-		float* vertices = objects::vertices[figure];
-		float* normals = objects::normals[figure];
-		float* texCoords = objects::texCoords[figure];
+		float* vertices = objects::vertices[figure].data();
+		float* normals = objects::normals[figure].data();
+		float* texCoords = objects::texCoords[figure].data();
 		GLuint textureMap = objects::textureMap[figure];
 		GLuint specularMap = objects::specularMap[figure];
 		int vertexCount = objects::vertexCount[figure];
+		//for (int i = 0; i < 36; i++) std::cout << vertices[i] << " ";
 
 		glm::mat4 M = objects::M[figure];
 
@@ -221,7 +222,7 @@ namespace render {
 		glUniformMatrix4fv(render::shaderProgram->u("M"), 1, false, glm::value_ptr(M));
 		glUniform1i(render::shaderProgram->u("textureMap"), textureUnitNumberA);
 		glUniform1i(render::shaderProgram->u("specularMap"), textureUnitNumberB);
-		glUniform4f(render::shaderProgram->u("lightPosition"), 0, 0, -6, 1);
+		glUniform4f(render::shaderProgram->u("lightPosition"), 0, 3, -6, 1);
 
 		glEnableVertexAttribArray(render::shaderProgram->a("vertexPosition"));  //Włącz przesyłanie danych do atrybutu vertex
 		glVertexAttribPointer(render::shaderProgram->a("vertexPosition"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
@@ -488,25 +489,25 @@ namespace model {
 			model::print::face(face);
 			// upper triangle
 			// vertices
-			model::flatten(vertexesFlatten, vertexes->at(face.v1));
+			model::flatten(vertexesFlatten, vertexes->at(face.v4));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 			model::flatten(vertexesFlatten, vertexes->at(face.v2));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(vertexesFlatten, vertexes->at(face.v4));
+			model::flatten(vertexesFlatten, vertexes->at(face.v1));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 
 			// textures
 			if (face.t1 != -1 && face.t2 != -1 && face.t3 != -1) {
-				model::flatten(texturesFlatten, textures->at(face.t1));
+				model::flatten(texturesFlatten, textures->at(face.t4));
 				std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
 				model::flatten(texturesFlatten, textures->at(face.t2));
 				std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
-				model::flatten(texturesFlatten, textures->at(face.t4));
+				model::flatten(texturesFlatten, textures->at(face.t1));
 				std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
 			}
@@ -515,37 +516,37 @@ namespace model {
 			}
 
 			// normals
-			model::flatten(normalsFlatten, normals->at(face.n1));
+			model::flatten(normalsFlatten, normals->at(face.n4));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 			model::flatten(normalsFlatten, normals->at(face.n2));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
-			model::flatten(normalsFlatten, normals->at(face.n4));
+			model::flatten(normalsFlatten, normals->at(face.n1));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 
 			// bottom triangle
 			// vertices
-			model::flatten(vertexesFlatten, vertexes->at(face.v2));
+			model::flatten(vertexesFlatten, vertexes->at(face.v4));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 			model::flatten(vertexesFlatten, vertexes->at(face.v3));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(vertexesFlatten, vertexes->at(face.v4));
+			model::flatten(vertexesFlatten, vertexes->at(face.v2));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 
 			//textures
 			if (face.t2 != -1 && face.t3 != -1 && face.t4 != -1) {
-				model::flatten(texturesFlatten, textures->at(face.t2));
+				model::flatten(texturesFlatten, textures->at(face.t4));
 				std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
 				model::flatten(texturesFlatten, textures->at(face.t3));
 				std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
-				model::flatten(texturesFlatten, textures->at(face.t4));
+				model::flatten(texturesFlatten, textures->at(face.t2));
 				std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
 			}
@@ -554,13 +555,13 @@ namespace model {
 			}
 
 			// normals
-			model::flatten(normalsFlatten, normals->at(face.n2));
+			model::flatten(normalsFlatten, normals->at(face.n4));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 			model::flatten(normalsFlatten, normals->at(face.n3));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
-			model::flatten(normalsFlatten, normals->at(face.n4));
+			model::flatten(normalsFlatten, normals->at(face.n2));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 		}
@@ -583,9 +584,9 @@ namespace model {
 		model::flattenToArrays(&vertexes, &normals, &faces, &textures, &vertexesResult, &normalsResult, &texturesResult);
 
 		objects::vertexCount[figure] = faces.size() * 6;
-		objects::vertices[figure] = vertexesResult.data();
-		objects::normals[figure] = normalsResult.data();
-		objects::texCoords[figure] = texturesResult.data();
+		objects::vertices[figure] = vertexesResult;
+		objects::normals[figure] = normalsResult;
+		objects::texCoords[figure] = texturesResult;
 		for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
 	}
 }
@@ -602,6 +603,8 @@ namespace board {
 		objects::textureMap[board::figure] = render::readTexture("metal.png", GL_TEXTURE0);
 		objects::specularMap[board::figure] = render::readTexture("metal_spec.png", GL_TEXTURE1);
 		model::read("board.obj", board::figure);
+
+		for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
 	}
 
 	void move(float distance, transformations::Axis axis) {
