@@ -161,6 +161,7 @@ namespace observer {
 	}
 }
 
+
 namespace render {
 	glm::mat4 V;
 	glm::mat4 P;
@@ -298,6 +299,51 @@ namespace transformations {
 			}
 		}
 	}
+}
+
+namespace transformationsInject {
+	void move(glm::mat4* M, transformations::Axis axis, float distance) {
+		switch (axis) {
+			case transformations::Axis::x: {
+				*M = glm::translate(*M, glm::vec3(distance, 0.0f, 0.0f));
+			}
+			case transformations::Axis::y: {
+				*M = glm::translate(*M, glm::vec3(0.0f, distance, 0.0f));
+			}
+			case transformations::Axis::z: {
+				*M = glm::translate(*M, glm::vec3(0.0f, 0.0f, distance));
+			}
+		}
+	}
+
+	void rotate(glm::mat4* M, transformations::Axis axis, float angle) {
+		switch (axis) {
+			case transformations::Axis::x: {
+				*M = glm::rotate(*M, angle, glm::vec3(1.0f, 0.0f, 0.0f));
+			}
+			case transformations::Axis::y: {
+				*M = glm::rotate(*M, angle, glm::vec3(0.0f, 1.0f, 0.0f));
+			}
+			case transformations::Axis::z: {
+				*M = glm::rotate(*M, angle, glm::vec3(0.0f, 0.0f, 1.0f));
+			}
+		}
+	}
+
+	void scale(glm::mat4* M, transformations::Axis axis, float scale) {
+		switch (axis) {
+			case transformations::Axis::x: {
+				*M = glm::scale(*M, glm::vec3(scale, 0.0f, 0.0f));
+			}
+			case transformations::Axis::y: {
+				*M  = glm::scale(*M, glm::vec3(0.0f, scale, 0.0f));
+			}
+			case transformations::Axis::z: {
+				*M = glm::scale(*M, glm::vec3(0.0f, 0.0f, scale));
+			}
+		}
+	}
+
 }
 
 namespace model {
@@ -591,6 +637,69 @@ namespace model {
 	}
 }
 
+namespace pUpdater {
+	std::ifstream file;
+	objects::Figure figure;
+	glm::mat4 M;
+
+	const char* selectFileName() {
+		switch (pUpdater::figure) {
+			case objects::Figure::board: {
+				return "pBoard.properties";
+			}
+		}
+	}
+
+	void updateScale(float x, float y, float z) {
+		transformationsInject::scale(&pUpdater::M, transformations::Axis::x, x);
+		transformationsInject::scale(&pUpdater::M, transformations::Axis::y, y);
+		transformationsInject::scale(&pUpdater::M, transformations::Axis::z, z);
+	}
+
+	void updatePosition(float x, float y, float z) {
+		transformationsInject::move(&pUpdater::M, transformations::Axis::x, x);
+		transformationsInject::move(&pUpdater::M, transformations::Axis::y, y);
+		transformationsInject::move(&pUpdater::M, transformations::Axis::z, z);
+	}
+
+	void updateRotation(float x, float y, float z) {
+		transformationsInject::rotate(&pUpdater::M, transformations::Axis::x, x);
+		transformationsInject::rotate(&pUpdater::M, transformations::Axis::y, y);
+		transformationsInject::rotate(&pUpdater::M, transformations::Axis::z, z);
+	}
+
+	void createAndOpen() {
+		std::fstream f(pUpdater::selectFileName(), std::ios::out | std::ios::trunc);
+		f << "position: 0 0 0" << std::endl;
+		f << "scale: 1 1 1" << std::endl;
+		f << "rotation: 0 0 0" << std::endl;
+		f.close();
+
+		pUpdater::file.open(pUpdater::selectFileName());
+	}
+
+	void update(objects::Figure figure) {
+		pUpdater::file.open(pUpdater::selectFileName());
+		pUpdater::figure = figure;
+		pUpdater::M = glm::mat4(1.0f);
+
+		if (!pUpdater::file) pUpdater::createAndOpen();
+
+		while (!pUpdater::file.eof()) {
+			std::string line;
+			std::getline(pUpdater::file, line);
+			std::vector<std::string> tokens = model::split(line, " ");
+			std::string selector = tokens[0];
+			printg::vector(tokens);
+			//if (selector == "scale:") pUpdater::updateScale(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+			if (selector == "position:") pUpdater::updatePosition(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+			else if (selector == "rotation:") pUpdater::updateRotation(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+		}
+		objects::M[figure] = pUpdater::M;
+		pUpdater::file.close();
+	}
+}
+
 namespace board {
 	const objects::Figure figure = objects::Figure::board;
 
@@ -620,6 +729,7 @@ namespace board {
 	}
 
 	void render() {
+		pUpdater::update(board::figure);
 		render::render(board::figure);
 		// std::cout << figure;
 	}
