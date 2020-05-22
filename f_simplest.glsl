@@ -41,7 +41,6 @@ void main(void) {
 	float reflectedToObserverCosine = pow(clamp(dot(_N_refkectedLight, _N_toObserver), 0, 1), 50);
 	float _N_reflectedToObserverCosine = clamp(reflectedToObserverCosine, 0, 1);
 
-	pixelColor = 
-		vec4(albedo.rgb * _N_normalToLightCosine, albedo.a) +
-		vec4(reflectionDotColor.rgb*_N_reflectedToObserverCosine, 0);
+	
+	pixelColor = vec4(1,1,1,1);
 }

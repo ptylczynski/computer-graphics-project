@@ -80,10 +80,10 @@ namespace printg {
 		std::cout << std::endl;
 	}
 
-	void last(std::vector<float> v, int amount) {
-		int last = v.size() - amount;
-		mathematics::clamp(&last, 0, v.size());
-		for (int i = v.size() - 1;  i >= last; i--) std::cout << v[last] << " ";
+	void last(std::vector<float>* v, int amount) {
+		int last = v->size() - amount;
+		mathematics::clamp(&last, 0, v->size());
+		for (int i = v->size() - 1;  i >= last; i--) std::cout << v->at(i) << " ";
 		std::cout << std::endl;
 	}
 }
@@ -404,7 +404,7 @@ namespace model {
 		dest->push_back(texture.y);
 	}
 
-	void inflateToVectors(std::vector<model::vertex> * vertexes, std::vector<model::normal> * normals, std::vector<model::face> * faces, std::vector<model::texture>* textures, std::string filename) {
+	void inflateToStructs(std::vector<model::vertex> * vertexes, std::vector<model::normal> * normals, std::vector<model::face> * faces, std::vector<model::texture>* textures, std::string filename) {
 		std::cout << "Inflating to vectors of structs" << std::endl;
 		int line_no = 0;
 		std::ifstream file(filename);
@@ -444,61 +444,43 @@ namespace model {
 			}
 			else if (type == "f") {
 				model::face face;
-				/*
-				if (tokens.size == 4) {
-					std::vector<std::string> subtokens1 = model::split(tokens[1], "//");
-					face.v1 = std::stoi(subtokens1[0]);
-					face.n1 = std::stoi(subtokens1[1]);
-
-					std::vector<std::string> subtokens2 = model::split(tokens[2], "//");
-					face.v2 = std::stoi(subtokens2[0]);
-					face.n2 = std::stoi(subtokens2[1]);
-
-					std::vector<std::string> subtokens3 = model::split(tokens[3], "//");
-					face.v3 = std::stoi(subtokens3[0]);
-					face.n3 = std::stoi(subtokens3[1]);
-				}
-				*/
-				//if (tokens.size == 5) {
 				std::vector<std::string> subtokens1 = model::split(tokens[1], "/");
-				face.v1 = std::stoi(subtokens1[0]);
-				face.t1 = (subtokens1[1] == "")? -1.0f : std::stoi(subtokens1[1]);
-				face.n1 = std::stoi(subtokens1[2]);
+				face.v1 = std::stoi(subtokens1[0]) - 1;
+				face.t1 = (subtokens1[1] == "")? -1.0f : std::stoi(subtokens1[1]) - 1;
+				face.n1 = std::stoi(subtokens1[2]) - 1;
 
 				std::vector<std::string> subtokens2 = model::split(tokens[2], "/");
-				face.v2 = std::stoi(subtokens2[0]);
-				face.t1 = (subtokens2[1] == "") ? -1.0f : std::stoi(subtokens2[1]);
-				face.n2 = std::stoi(subtokens2[2]);
+				face.v2 = std::stoi(subtokens2[0]) - 1;
+				face.t2 = (subtokens2[1] == "") ? -1 : std::stoi(subtokens2[1]) - 1;
+				face.n2 = std::stoi(subtokens2[2]) - 1;
 
 				std::vector<std::string> subtokens3 = model::split(tokens[3], "/");
-				face.v3 = std::stoi(subtokens3[0]);
-				face.t1 = (subtokens3[1] == "") ? -1.0f : std::stoi(subtokens3[1]);
-				face.n3 = std::stoi(subtokens3[2]);
+				face.v3 = std::stoi(subtokens3[0]) - 1;
+				face.t3 = (subtokens3[1] == "") ? -1 : std::stoi(subtokens3[1]) - 1;
+				face.n3 = std::stoi(subtokens3[2]) - 1;
 
 				std::vector<std::string> subtokens4 = model::split(tokens[4], "/");
-				face.v4 = std::stoi(subtokens4[0]);
-				face.t1 = (subtokens4[1] == "") ? -1.0f : std::stoi(subtokens4[1]);
-				face.n4 = std::stoi(subtokens4[2]);
+				face.v4 = std::stoi(subtokens4[0]) - 1;
+				face.t4 = (subtokens4[1] == "") ? -1 : std::stoi(subtokens4[1]) - 1;
+				face.n4 = std::stoi(subtokens4[2]) - 1;
 
 				model::print::face(face);
 				faces->push_back(face);
-				//}
 			}
+			line_no++;
 		}
 	}
 
-	std::vector<float*> flattenToArrays(std::vector<model::vertex>* vertexes, std::vector<model::normal>* normals, std::vector<model::face>* faces, std::vector<model::texture>* textures) {
+	void flattenToArrays(std::vector<model::vertex>* vertexes, std::vector<model::normal>* normals, std::vector<model::face>* faces, std::vector<model::texture>* textures, std::vector<float>* vertexesFlatten, std::vector<float>* normalsFlatten, std::vector<float>* texturesFlatten) {
 		std::cout << "Flattening to arrays" << std::endl;
-		std::vector<float> vertexesFlatten;
-		std::vector<float> normalsFlatten;
-		std::vector<float> texturesFlatten;
+		std::cout << faces->size() << std::endl;
 		for (unsigned int i = 0; i < faces->size(); i++) {
 			/*
 				1     2
 				*-----*
 				|  /  |
 				*-----*
-				3     4
+				4     3
 			*/
 
 			std::cout << "face_no: " << i << std::endl;
@@ -506,77 +488,83 @@ namespace model {
 			model::print::face(face);
 			// upper triangle
 			// vertices
-			model::flatten(&vertexesFlatten, vertexes->at(face.v1));
+			model::flatten(vertexesFlatten, vertexes->at(face.v1));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(&vertexesFlatten, vertexes->at(face.v2));
+			model::flatten(vertexesFlatten, vertexes->at(face.v2));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(&vertexesFlatten, vertexes->at(face.v3));
+			model::flatten(vertexesFlatten, vertexes->at(face.v4));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 
 			// textures
-			model::flatten(&texturesFlatten, textures->at(face.t1));
-			std::cout << "Tailing texturesFlatten: ";
-			printg::last(texturesFlatten, 2);
-			model::flatten(&texturesFlatten, textures->at(face.t2));
-			std::cout << "Tailing texturesFlatten: ";
-			printg::last(texturesFlatten, 2);
-			model::flatten(&texturesFlatten, textures->at(face.t3));
-			std::cout << "Tailing texturesFlatten: ";
-			printg::last(texturesFlatten, 2);
+			if (face.t1 != -1 && face.t2 != -1 && face.t3 != -1) {
+				model::flatten(texturesFlatten, textures->at(face.t1));
+				std::cout << "Tailing texturesFlatten: ";
+				printg::last(texturesFlatten, 2);
+				model::flatten(texturesFlatten, textures->at(face.t2));
+				std::cout << "Tailing texturesFlatten: ";
+				printg::last(texturesFlatten, 2);
+				model::flatten(texturesFlatten, textures->at(face.t4));
+				std::cout << "Tailing texturesFlatten: ";
+				printg::last(texturesFlatten, 2);
+			}
+			else {
+				for (int j = 0; j < 6; j++) texturesFlatten->push_back(0);
+			}
 
 			// normals
-			model::flatten(&normalsFlatten, normals->at(face.n1));
+			model::flatten(normalsFlatten, normals->at(face.n1));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
-			model::flatten(&normalsFlatten, normals->at(face.n2));
+			model::flatten(normalsFlatten, normals->at(face.n2));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
-			model::flatten(&normalsFlatten, normals->at(face.n3));
+			model::flatten(normalsFlatten, normals->at(face.n4));
 			std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 
 			// bottom triangle
 			// vertices
-			model::flatten(&vertexesFlatten, vertexes->at(face.v2));
+			model::flatten(vertexesFlatten, vertexes->at(face.v2));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(&vertexesFlatten, vertexes->at(face.v3));
+			model::flatten(vertexesFlatten, vertexes->at(face.v3));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(&vertexesFlatten, vertexes->at(face.v4));
+			model::flatten(vertexesFlatten, vertexes->at(face.v4));
 			std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 
 			//textures
-			model::flatten(&texturesFlatten, textures->at(face.t2));
-			std::cout << "Tailing texturesFlatten: ";
-			printg::last(texturesFlatten, 2);
-			model::flatten(&texturesFlatten, textures->at(face.t3));
-			std::cout << "Tailing texturesFlatten: ";
-			printg::last(texturesFlatten, 2);
-			model::flatten(&texturesFlatten, textures->at(face.t4));
-			std::cout << "Tailing texturesFlatten: ";
-			printg::last(texturesFlatten, 2);
-			// normals
-			model::flatten(&normalsFlatten, normals->at(face.n2));
-			std::cout << "Tailing normalsFlatten: ";
-			printg::last(normalsFlatten, 4);
-			model::flatten(&normalsFlatten, normals->at(face.n3));
-			std::cout << "Tailing normalsFlatten: ";
-			printg::last(normalsFlatten, 4);
-			model::flatten(&normalsFlatten, normals->at(face.n4));
-			std::cout << "Tailing normalsFlatten: ";
-			printg::last(normalsFlatten, 4);
+			if (face.t2 != -1 && face.t3 != -1 && face.t4 != -1) {
+				model::flatten(texturesFlatten, textures->at(face.t2));
+				std::cout << "Tailing texturesFlatten: ";
+				printg::last(texturesFlatten, 2);
+				model::flatten(texturesFlatten, textures->at(face.t3));
+				std::cout << "Tailing texturesFlatten: ";
+				printg::last(texturesFlatten, 2);
+				model::flatten(texturesFlatten, textures->at(face.t4));
+				std::cout << "Tailing texturesFlatten: ";
+				printg::last(texturesFlatten, 2);
+			}
+			else {
+				for (int j = 0; j < 6; j++) texturesFlatten->push_back(0);
+			}
 
-			std::vector<float*> result;
-			result.push_back(&vertexesFlatten[0]);
-			result.push_back(&normalsFlatten[0]);
-			result.push_back(&texturesFlatten[0]);
-			return result;
+			// normals
+			model::flatten(normalsFlatten, normals->at(face.n2));
+			std::cout << "Tailing normalsFlatten: ";
+			printg::last(normalsFlatten, 4);
+			model::flatten(normalsFlatten, normals->at(face.n3));
+			std::cout << "Tailing normalsFlatten: ";
+			printg::last(normalsFlatten, 4);
+			model::flatten(normalsFlatten, normals->at(face.n4));
+			std::cout << "Tailing normalsFlatten: ";
+			printg::last(normalsFlatten, 4);
 		}
+
 	}
 
 	void read(std::string filename, objects::Figure figure) {
@@ -586,21 +574,24 @@ namespace model {
 		std::vector<model::normal> normals;
 		std::vector<model::face> faces;
 		std::vector<model::texture> textures;
-		std::vector<float*> result;
+
+		std::vector<float> vertexesResult;
+		std::vector<float> normalsResult;
+		std::vector<float> texturesResult;
 		
-		model::inflateToVectors(&vertexes, &normals, &faces, &textures, filename);
-		result = model::flattenToArrays(&vertexes, &normals, &faces, &textures);
+		model::inflateToStructs(&vertexes, &normals, &faces, &textures, filename);
+		model::flattenToArrays(&vertexes, &normals, &faces, &textures, &vertexesResult, &normalsResult, &texturesResult);
 
-		objects::vertices[figure] = result[0];
-		objects::normals[figure] = result[1];
 		objects::vertexCount[figure] = faces.size() * 6;
-		objects::texCoords[figure] = result[2];
-
+		objects::vertices[figure] = vertexesResult.data();
+		objects::normals[figure] = normalsResult.data();
+		objects::texCoords[figure] = texturesResult.data();
+		for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
 	}
 }
 
 namespace board {
-	objects::Figure figure = objects::Figure::board;
+	const objects::Figure figure = objects::Figure::board;
 
 	void init() {
 		objects::M[board::figure] = glm::mat4(1.0f);
