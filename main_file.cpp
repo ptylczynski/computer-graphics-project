@@ -262,12 +262,15 @@ namespace transformations {
 		switch(axis) {
 			case transformations::Axis::x: {
 				objects::M[figure] = glm::translate(objects::M[figure], glm::vec3(distance, 0.0f, 0.0f));
+				break;
 			}
 			case transformations::Axis::y: {
 				objects::M[figure] = glm::translate(objects::M[figure], glm::vec3(0.0f, distance, 0.0f));
+				break;
 			}
 			case transformations::Axis::z: {
 				objects::M[figure] = glm::translate(objects::M[figure], glm::vec3(0.0f, 0.0f, distance));
+				break;
 			}
 		}
 	}
@@ -276,12 +279,15 @@ namespace transformations {
 		switch (axis) {
 			case transformations::Axis::x: {
 				objects::M[figure] = glm::rotate(objects::M[figure], angle, glm::vec3(1.0f, 0.0f, 0.0f));
+				break;
 			}
 			case transformations::Axis::y: {
 				objects::M[figure] = glm::rotate(objects::M[figure], angle, glm::vec3(0.0f, 1.0f, 0.0f));
+				break;
 			}
 			case transformations::Axis::z: {
 				objects::M[figure] = glm::rotate(objects::M[figure], angle, glm::vec3(0.0f, 0.0f, 1.0f));
+				break;
 			}
 		}
 	}
@@ -289,13 +295,17 @@ namespace transformations {
 	void scale(objects::Figure figure, transformations::Axis axis, float scale) {
 		switch (axis) {
 			case transformations::Axis::x: {
-				objects::M[figure] = glm::scale(objects::M[figure], glm::vec3(scale, 0.0f, 0.0f));
+				objects::M[figure] = glm::scale(objects::M[figure], glm::vec3(scale, 1.0f, 1.0f));
+				break;
+
 			}
 			case transformations::Axis::y: {
-				objects::M[figure] = glm::scale(objects::M[figure], glm::vec3(0.0f, scale, 0.0f));
+				objects::M[figure] = glm::scale(objects::M[figure], glm::vec3(1.0f, scale, 1.0f));
+				break;
 			}
 			case transformations::Axis::z: {
-				objects::M[figure] = glm::scale(objects::M[figure], glm::vec3(0.0f, 0.0f, scale));
+				objects::M[figure] = glm::scale(objects::M[figure], glm::vec3(1.0f, 1.0f, scale));
+				break;
 			}
 		}
 	}
@@ -306,12 +316,15 @@ namespace transformationsInject {
 		switch (axis) {
 			case transformations::Axis::x: {
 				*M = glm::translate(*M, glm::vec3(distance, 0.0f, 0.0f));
+				break;
 			}
 			case transformations::Axis::y: {
 				*M = glm::translate(*M, glm::vec3(0.0f, distance, 0.0f));
+				break;
 			}
 			case transformations::Axis::z: {
 				*M = glm::translate(*M, glm::vec3(0.0f, 0.0f, distance));
+				break;
 			}
 		}
 	}
@@ -320,12 +333,15 @@ namespace transformationsInject {
 		switch (axis) {
 			case transformations::Axis::x: {
 				*M = glm::rotate(*M, angle, glm::vec3(1.0f, 0.0f, 0.0f));
+				break;
 			}
 			case transformations::Axis::y: {
 				*M = glm::rotate(*M, angle, glm::vec3(0.0f, 1.0f, 0.0f));
+				break;
 			}
 			case transformations::Axis::z: {
 				*M = glm::rotate(*M, angle, glm::vec3(0.0f, 0.0f, 1.0f));
+				break;
 			}
 		}
 	}
@@ -333,13 +349,16 @@ namespace transformationsInject {
 	void scale(glm::mat4* M, transformations::Axis axis, float scale) {
 		switch (axis) {
 			case transformations::Axis::x: {
-				*M = glm::scale(*M, glm::vec3(scale, 0.0f, 0.0f));
+				*M = glm::scale(*M, glm::vec3(scale, 1.0f, 1.0f));
+				break;
 			}
 			case transformations::Axis::y: {
-				*M  = glm::scale(*M, glm::vec3(0.0f, scale, 0.0f));
+				*M  = glm::scale(*M, glm::vec3(1.0f, scale, 1.0f));
+				break;
 			}
 			case transformations::Axis::z: {
-				*M = glm::scale(*M, glm::vec3(0.0f, 0.0f, scale));
+				*M = glm::scale(*M, glm::vec3(1.0f, 1.0f, scale));
+				break;
 			}
 		}
 	}
@@ -691,9 +710,9 @@ namespace pUpdater {
 			std::vector<std::string> tokens = model::split(line, " ");
 			std::string selector = tokens[0];
 			printg::vector(tokens);
-			//if (selector == "scale:") pUpdater::updateScale(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
 			if (selector == "position:") pUpdater::updatePosition(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
 			else if (selector == "rotation:") pUpdater::updateRotation(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+			else if (selector == "scale:") pUpdater::updateScale(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
 		}
 		objects::M[figure] = pUpdater::M;
 		pUpdater::file.close();
