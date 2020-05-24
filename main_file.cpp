@@ -31,10 +31,14 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include "constants.h"
 #include "lodepng.h"
 #include "shaderprogram.h"
-#include "myCube.h"
-#include "myTeapot.h"
 #include <map>
 #include <fstream>
+#include "models/board/object.obj.h"
+#include "models/bishop_w/object.obj.h"
+
+
+const bool isDebugActive = false;
+const bool makeAutoUpdate = true;
 
 namespace mathematics {
 	void min(float* value, float min) {
@@ -68,28 +72,53 @@ namespace mathematics {
 	}
 }
 
+namespace global {
+	glm::vec3 light1Pos;
+	glm::vec3 light2Pos;
+	const char* settingsPath = "settings.prop";
+
+	void init() {
+		light1Pos = glm::vec3(0.0f, 12.0f, -4.0f);
+		light2Pos = glm::vec3(0.0f, 12.0f, 4.0f);
+	}
+}
+
 namespace printg {
 	void vector(std::vector<std::string> v, std::string title) {
-		std::cout << title << std::endl;
-		for (int i = 0; i < v.size(); i++) std::cout << "<->" << v[i];
-		std::cout << std::endl;
+		if (isDebugActive) {
+			std::cout << title << std::endl;
+			for (int i = 0; i < v.size(); i++) std::cout << "<->" << v[i];
+			std::cout << std::endl;
+		}
+		
 	}
 
 	void vector(std::vector<std::string> v) {
-		for (int i = 0; i < v.size(); i++) std::cout << "<->" << v[i];
-		std::cout << std::endl;
+		if (isDebugActive) {
+			for (int i = 0; i < v.size(); i++) std::cout << "<->" << v[i];
+			std::cout << std::endl;
+		}
 	}
 
 	void last(std::vector<float>* v, int amount) {
-		int last = v->size() - amount;
-		mathematics::clamp(&last, 0, v->size());
-		for (int i = v->size() - 1;  i >= last; i--) std::cout << v->at(i) << " ";
-		std::cout << std::endl;
+		if (isDebugActive) {
+			int last = v->size() - amount;
+			mathematics::clamp(&last, 0, v->size());
+			for (int i = v->size() - 1; i >= last; i--) std::cout << v->at(i) << " ";
+			std::cout << std::endl;
+		}
 	}
 }
 
 namespace objects {
-	enum Figure { board };
+	enum Figure { board,
+		bishop_w1, bishop_w2, bishop_b1, bishop_b2,
+		king_w, queen_w, king_b, queen_b,
+		rook_w1, rook_w2, rook_b1, rook_b2,
+		knight_w1, knight_w2, knight_b1, knight_b2,
+		pawn_w1, pawn_w2, pawn_w3, pawn_w4, pawn_w5, pawn_w6, pawn_w7, pawn_w8,
+		pawn_b1, pawn_b2, pawn_b3, pawn_b4, pawn_b5, pawn_b6, pawn_b7, pawn_b8
+	};
 
 	std::map<objects::Figure, glm::mat4> M;
 	std::map<objects::Figure, int> textureUnitA;
@@ -98,10 +127,13 @@ namespace objects {
 	std::map<objects::Figure, int> textureUnitNumberB;
 	std::map<objects::Figure, GLuint> textureMap;
 	std::map<objects::Figure, GLuint> specularMap;
-	std::map<objects::Figure, std::vector<float> > vertices;
-	std::map<objects::Figure, std::vector<float> > normals;
-	std::map<objects::Figure, std::vector<float> > texCoords;
+	std::map<objects::Figure, float*> vertices;
+	std::map<objects::Figure, float*> normals;
+	std::map<objects::Figure, float*> texCoords;
 	std::map<objects::Figure, int> vertexCount;
+	std::map<objects::Figure, const char*> imagePathA;
+	std::map<objects::Figure, const char*> imagePathB;
+	std::map<objects::Figure, std::string> controllFilePath;
 }
 
 namespace observer {
@@ -170,7 +202,7 @@ namespace render {
 
 	GLuint readTexture(const char* filename, int textureUnit) {
 		GLuint tex;
-		glActiveTexture(textureUnit); //Wczytanie do pamięci komputera
+		//glActiveTexture(textureUnit); //Wczytanie do pamięci komputera
 		std::vector<unsigned char> image;   //Alokuj wektor do wczytania obrazka
 		unsigned width, height;   //Zmienne do których wczytamy wymiary obrazka
 								 //Wczytaj obrazek
@@ -184,12 +216,26 @@ namespace render {
 		return tex;
 	}
 
-	void init() {
-		render::P = glm::perspective(50.0f * PI / 180.0f, render::aspectRatio, 0.01f, 50.0f);
-		render::shaderProgram = new ShaderProgram("v_simplest.glsl", NULL, "f_simplest.glsl");
+	GLuint readTextureA(objects::Figure figure) {
+		return render::readTexture(objects::imagePathA[figure], objects::textureUnitA[figure]);
 	}
 
+	GLuint readTextureB(objects::Figure figure) {
+		return render::readTexture(objects::imagePathB[figure], objects::textureUnitB[figure]);
+	}
 
+	void init() {
+		render::P = glm::perspective(50.0f * PI / 180.0f, render::aspectRatio, 0.01f, 150.0f);
+		render::shaderProgram = new ShaderProgram("shaders/v_simplest.glsl", NULL, "shaders/f_simplest.glsl");
+	}
+
+	void start() {
+		render::V = glm::lookAt(
+			observer::position,
+			observer::lookAtPosition,
+			glm::vec3(0.0f, 1.0f, 0.0f));
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	}
 
 	void render(objects::Figure figure) {
 
@@ -197,25 +243,20 @@ namespace render {
 		int textureUnitB = objects::textureUnitB[figure];
 		int textureUnitNumberA = objects::textureUnitNumberA[figure];
 		int textureUnitNumberB = objects::textureUnitNumberB[figure];
-		float* vertices = objects::vertices[figure].data();
-		float* normals = objects::normals[figure].data();
-		float* texCoords = objects::texCoords[figure].data();
+		float* vertices = objects::vertices[figure];
+		float* normals = objects::normals[figure];
+		float* texCoords = objects::texCoords[figure];
 		GLuint textureMap = objects::textureMap[figure];
 		GLuint specularMap = objects::specularMap[figure];
 		int vertexCount = objects::vertexCount[figure];
 		//for (int i = 0; i < 36; i++) std::cout << vertices[i] << " ";
 
+		glm::vec3 lightPossitions[] = {
+			global::light1Pos,
+			global::light2Pos
+		};
+
 		glm::mat4 M = objects::M[figure];
-
-		render::V = glm::lookAt(
-			observer::position,
-			observer::lookAtPosition,
-			glm::vec3(0.0f, 1.0f, 0.0f));
-		
-
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
 		render::shaderProgram->use();//Aktywacja programu cieniującego
 		//Przeslij parametry programu cieniującego do karty graficznej
 		glUniformMatrix4fv(render::shaderProgram->u("P"), 1, false, glm::value_ptr(render::P));
@@ -223,7 +264,11 @@ namespace render {
 		glUniformMatrix4fv(render::shaderProgram->u("M"), 1, false, glm::value_ptr(M));
 		glUniform1i(render::shaderProgram->u("textureMap"), textureUnitNumberA);
 		glUniform1i(render::shaderProgram->u("specularMap"), textureUnitNumberB);
-		glUniform4f(render::shaderProgram->u("lightPosition"), 0, 3, -6, 1);
+		glUniform3fv(render::shaderProgram->u("lightPosition"), 2, glm::value_ptr(lightPossitions[0]));
+		glUniform4f(render::shaderProgram->u("cameraPosition"), observer::position.x, observer::position.y, observer::position.z, 1);
+		glUniform1f(render::shaderProgram->u("metallic"), 0.1f);
+		glUniform1f(render::shaderProgram->u("roughness"), 0.2f);
+		glUniform3f(render::shaderProgram->u("ao"), 1, 1, 1);
 
 		glEnableVertexAttribArray(render::shaderProgram->a("vertexPosition"));  //Włącz przesyłanie danych do atrybutu vertex
 		glVertexAttribPointer(render::shaderProgram->a("vertexPosition"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
@@ -365,7 +410,7 @@ namespace transformationsInject {
 
 }
 
-namespace model {
+namespace converter {
 	struct vertex {
 		float x;
 		float y;
@@ -402,38 +447,46 @@ namespace model {
 	};
 
 	namespace print {
-		void vertex(model::vertex v) {
-			std::cout << "x: " << v.x << " y: " << v.y << " z: " << v.z << std::endl;
+		void vertex(converter::vertex v) {
+			if (isDebugActive) {
+				std::cout << "x: " << v.x << " y: " << v.y << " z: " << v.z << std::endl;
+			}
 		}
 
-		void normal(model::normal n) {
-			std::cout << "x: " << n.x << " y: " << n.y << " z: " << n.z << std::endl;
+		void normal(converter::normal n) {
+			if (isDebugActive) {
+				std::cout << "x: " << n.x << " y: " << n.y << " z: " << n.z << std::endl;
+			}
 		}
 
-		void texture(model::texture t) {
-			std::cout << "x: " << t.x << " y: " << t.y << std::endl;
+		void texture(converter::texture t) {
+			if (isDebugActive) {
+				std::cout << "x: " << t.x << " y: " << t.y << std::endl;
+			}
 		}
 
-		void face(model::face f) {
-			std::cout << "Vertex 1: "
-				<< "\n\tvertex_no: " << f.v1
-				<< "\n\tnormal_no: " << f.n1
-				<< "\n\ttexture_no: " << f.t1 << std::endl;
+		void face(converter::face f) {
+			if (isDebugActive) {
+				std::cout << "Vertex 1: "
+					<< "\n\tvertex_no: " << f.v1
+					<< "\n\tnormal_no: " << f.n1
+					<< "\n\ttexture_no: " << f.t1 << std::endl;
 
-			std::cout << "Vertex 2: "
-				<< "\n\tvertex_no: " << f.v2
-				<< "\n\tnormal_no: " << f.n2
-				<< "\n\ttexture_no: " << f.t2 << std::endl;
+				std::cout << "Vertex 2: "
+					<< "\n\tvertex_no: " << f.v2
+					<< "\n\tnormal_no: " << f.n2
+					<< "\n\ttexture_no: " << f.t2 << std::endl;
 
-			std::cout << "Vertex 3: "
-				<< "\n\tvertex_no: " << f.v3
-				<< "\n\tnormal_no: " << f.n3
-				<< "\n\ttexture_no: " << f.t3 << std::endl;
+				std::cout << "Vertex 3: "
+					<< "\n\tvertex_no: " << f.v3
+					<< "\n\tnormal_no: " << f.n3
+					<< "\n\ttexture_no: " << f.t3 << std::endl;
 
-			std::cout << "Vertex 4: "
-				<< "\n\tvertex_no: " << f.v4
-				<< "\n\tnormal_no: " << f.n4
-				<< "\n\ttexture_no: " << f.t4 << std::endl;
+				std::cout << "Vertex 4: "
+					<< "\n\tvertex_no: " << f.v4
+					<< "\n\tnormal_no: " << f.n4
+					<< "\n\ttexture_no: " << f.t4 << std::endl;
+			}
 		}
 	}
 
@@ -451,93 +504,110 @@ namespace model {
 		return tokens;
 	}
 
-	void flatten(std::vector<float>* dest, model::vertex vertex) {
+	void flatten(std::vector<float>* dest, converter::vertex vertex) {
 		dest->push_back(vertex.x);
 		dest->push_back(vertex.y);
 		dest->push_back(vertex.z);
 		dest->push_back(1.0f);
 	}
 
-	void flatten(std::vector<float>* dest, model::normal normal) {
+	void flatten(std::vector<float>* dest, converter::normal normal) {
 		dest->push_back(normal.x);
 		dest->push_back(normal.y);
 		dest->push_back(normal.z);
 		dest->push_back(0.0f);
 	}
 
-	void flatten(std::vector<float>* dest, model::texture texture) {
+	void flatten(std::vector<float>* dest, converter::texture texture) {
 		dest->push_back(texture.x);
 		dest->push_back(texture.y);
 	}
 
-	void inflateToStructs(std::vector<model::vertex> * vertexes, std::vector<model::normal> * normals, std::vector<model::face> * faces, std::vector<model::texture>* textures, std::string filename) {
+	void removeExtraSpaces(std::string* line) {
+		char last = 'a';
+		std::string result;
+		for (int i = 0; i < line->size(); i++) {
+			char c = line->at(i);
+			if (c != ' ') {
+				result.push_back(c);
+			}
+			else if (c == ' ' && last != ' ') {
+				result.push_back(c);
+			}
+			last = c;
+		}
+		*line = result;
+	}
+
+	void inflateToStructs(std::vector<converter::vertex> * vertexes, std::vector<converter::normal> * normals, std::vector<converter::face> * faces, std::vector<converter::texture>* textures, std::string filename) {
 		std::cout << "Inflating to vectors of structs" << std::endl;
 		int line_no = 0;
 		std::ifstream file(filename);
 		while (!file.eof()) {
 			std::string line;
 			std::getline(file, line);
-			std::vector<std::string> tokens = model::split(line, " ");
+			converter::removeExtraSpaces(&line);
+			std::vector<std::string> tokens = converter::split(line, " ");
 
 			std::cout << "Reading line: " << line_no << std::endl;
-			std::cout << "Content: "; printg::vector(tokens);
+			if (isDebugActive) std::cout << "Content: "; printg::vector(tokens);
 
 			std::string type = tokens[0];
 			if (type == "v") {
-				std::cout << "Line type: V" << std::endl;
-				model::vertex v;
+				if (isDebugActive) std::cout << "Line type: V" << std::endl;
+				converter::vertex v;
 				v.x = std::stof(tokens[1]);
 				v.y = std::stof(tokens[2]);
 				v.z = std::stof(tokens[3]);
-				model::print::vertex(v);
+				converter::print::vertex(v);
 				vertexes->push_back(v);
 			}
 			else if (type == "vn") {
-				model::normal n;
+				converter::normal n;
 				n.x = std::stof(tokens[1]);
 				n.y = std::stof(tokens[2]);
 				n.z = std::stof(tokens[3]);
-				model::print::normal(n);
+				converter::print::normal(n);
 				normals->push_back(n);
 			}
 			else if (type == "vt") {
-				std::cout << "Line type: VT" << std::endl;
-				model::texture t;
+				if (isDebugActive) std::cout << "Line type: VT" << std::endl;
+				converter::texture t;
 				t.x = std::stof(tokens[1]);
 				t.y = std::stof(tokens[2]);
-				model::print::texture(t);
+				converter::print::texture(t);
 				textures->push_back(t);
 			}
 			else if (type == "f") {
-				model::face face;
-				std::vector<std::string> subtokens1 = model::split(tokens[1], "/");
+				converter::face face;
+				std::vector<std::string> subtokens1 = converter::split(tokens[1], "/");
 				face.v1 = std::stoi(subtokens1[0]) - 1;
 				face.t1 = (subtokens1[1] == "")? -1.0f : std::stoi(subtokens1[1]) - 1;
 				face.n1 = std::stoi(subtokens1[2]) - 1;
 
-				std::vector<std::string> subtokens2 = model::split(tokens[2], "/");
+				std::vector<std::string> subtokens2 = converter::split(tokens[2], "/");
 				face.v2 = std::stoi(subtokens2[0]) - 1;
 				face.t2 = (subtokens2[1] == "") ? -1 : std::stoi(subtokens2[1]) - 1;
 				face.n2 = std::stoi(subtokens2[2]) - 1;
 
-				std::vector<std::string> subtokens3 = model::split(tokens[3], "/");
+				std::vector<std::string> subtokens3 = converter::split(tokens[3], "/");
 				face.v3 = std::stoi(subtokens3[0]) - 1;
 				face.t3 = (subtokens3[1] == "") ? -1 : std::stoi(subtokens3[1]) - 1;
 				face.n3 = std::stoi(subtokens3[2]) - 1;
 
-				std::vector<std::string> subtokens4 = model::split(tokens[4], "/");
+				std::vector<std::string> subtokens4 = converter::split(tokens[4], "/");
 				face.v4 = std::stoi(subtokens4[0]) - 1;
 				face.t4 = (subtokens4[1] == "") ? -1 : std::stoi(subtokens4[1]) - 1;
 				face.n4 = std::stoi(subtokens4[2]) - 1;
 
-				model::print::face(face);
+				converter::print::face(face);
 				faces->push_back(face);
 			}
 			line_no++;
 		}
 	}
 
-	void flattenToArrays(std::vector<model::vertex>* vertexes, std::vector<model::normal>* normals, std::vector<model::face>* faces, std::vector<model::texture>* textures, std::vector<float>* vertexesFlatten, std::vector<float>* normalsFlatten, std::vector<float>* texturesFlatten) {
+	void flattenToArrays(std::vector<converter::vertex>* vertexes, std::vector<converter::normal>* normals, std::vector<converter::face>* faces, std::vector<converter::texture>* textures, std::vector<float>* vertexesFlatten, std::vector<float>* normalsFlatten, std::vector<float>* texturesFlatten) {
 		std::cout << "Flattening to arrays" << std::endl;
 		std::cout << faces->size() << std::endl;
 		for (unsigned int i = 0; i < faces->size(); i++) {
@@ -550,30 +620,30 @@ namespace model {
 			*/
 
 			std::cout << "face_no: " << i << std::endl;
-			model::face face = faces->at(i);
-			model::print::face(face);
+			converter::face face = faces->at(i);
+			converter::print::face(face);
 			// upper triangle
 			// vertices
-			model::flatten(vertexesFlatten, vertexes->at(face.v4));
-			std::cout << "Tailing vertexesFlatten: ";
+			converter::flatten(vertexesFlatten, vertexes->at(face.v4));
+			if(isDebugActive) std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(vertexesFlatten, vertexes->at(face.v2));
-			std::cout << "Tailing vertexesFlatten: ";
+			converter::flatten(vertexesFlatten, vertexes->at(face.v2));
+			if (isDebugActive) std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(vertexesFlatten, vertexes->at(face.v1));
-			std::cout << "Tailing vertexesFlatten: ";
+			converter::flatten(vertexesFlatten, vertexes->at(face.v1));
+			if (isDebugActive) std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 
 			// textures
 			if (face.t1 != -1 && face.t2 != -1 && face.t3 != -1) {
-				model::flatten(texturesFlatten, textures->at(face.t4));
-				std::cout << "Tailing texturesFlatten: ";
+				converter::flatten(texturesFlatten, textures->at(face.t4));
+				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
-				model::flatten(texturesFlatten, textures->at(face.t2));
-				std::cout << "Tailing texturesFlatten: ";
+				converter::flatten(texturesFlatten, textures->at(face.t2));
+				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
-				model::flatten(texturesFlatten, textures->at(face.t1));
-				std::cout << "Tailing texturesFlatten: ";
+				converter::flatten(texturesFlatten, textures->at(face.t1));
+				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
 			}
 			else {
@@ -581,38 +651,38 @@ namespace model {
 			}
 
 			// normals
-			model::flatten(normalsFlatten, normals->at(face.n4));
-			std::cout << "Tailing normalsFlatten: ";
+			converter::flatten(normalsFlatten, normals->at(face.n4));
+			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
-			model::flatten(normalsFlatten, normals->at(face.n2));
-			std::cout << "Tailing normalsFlatten: ";
+			converter::flatten(normalsFlatten, normals->at(face.n2));
+			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
-			model::flatten(normalsFlatten, normals->at(face.n1));
-			std::cout << "Tailing normalsFlatten: ";
+			converter::flatten(normalsFlatten, normals->at(face.n1));
+			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 
 			// bottom triangle
 			// vertices
-			model::flatten(vertexesFlatten, vertexes->at(face.v4));
-			std::cout << "Tailing vertexesFlatten: ";
+			converter::flatten(vertexesFlatten, vertexes->at(face.v4));
+			if (isDebugActive) std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(vertexesFlatten, vertexes->at(face.v3));
-			std::cout << "Tailing vertexesFlatten: ";
+			converter::flatten(vertexesFlatten, vertexes->at(face.v3));
+			if (isDebugActive) std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
-			model::flatten(vertexesFlatten, vertexes->at(face.v2));
-			std::cout << "Tailing vertexesFlatten: ";
+			converter::flatten(vertexesFlatten, vertexes->at(face.v2));
+			if (isDebugActive) std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 
 			//textures
 			if (face.t2 != -1 && face.t3 != -1 && face.t4 != -1) {
-				model::flatten(texturesFlatten, textures->at(face.t4));
-				std::cout << "Tailing texturesFlatten: ";
+				converter::flatten(texturesFlatten, textures->at(face.t4));
+				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
-				model::flatten(texturesFlatten, textures->at(face.t3));
-				std::cout << "Tailing texturesFlatten: ";
+				converter::flatten(texturesFlatten, textures->at(face.t3));
+				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
-				model::flatten(texturesFlatten, textures->at(face.t2));
-				std::cout << "Tailing texturesFlatten: ";
+				converter::flatten(texturesFlatten, textures->at(face.t2));
+				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
 			}
 			else {
@@ -620,102 +690,181 @@ namespace model {
 			}
 
 			// normals
-			model::flatten(normalsFlatten, normals->at(face.n4));
-			std::cout << "Tailing normalsFlatten: ";
+			converter::flatten(normalsFlatten, normals->at(face.n4));
+			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
-			model::flatten(normalsFlatten, normals->at(face.n3));
-			std::cout << "Tailing normalsFlatten: ";
+			converter::flatten(normalsFlatten, normals->at(face.n3));
+			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
-			model::flatten(normalsFlatten, normals->at(face.n2));
-			std::cout << "Tailing normalsFlatten: ";
+			converter::flatten(normalsFlatten, normals->at(face.n2));
+			if (isDebugActive)std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 		}
 
 	}
 
-	void read(std::string filename, objects::Figure figure) {
+	void createFile(std::string filename, std::string namespacee, std::vector<float> vertexes, std::vector<float> normals, std::vector<float> textures) {
+		std::ofstream file(filename.append(".h"), std::ios::trunc);
+		file << "// auto generated for " << filename << std::endl;
+		file << "namespace " << namespacee << " {" << std::endl;
+
+		file << "	" << "const int vertexCount = " << vertexes.size() / 4 << ";" << std::endl;
+
+		file << "	float vertices[] = {" << std::endl;
+		for (int i = 0; i < vertexes.size() - 1; i++) {
+			file << "		" << vertexes[i] << ",";
+			if ((i + 1) % 4 == 0) file << std::endl;
+		}
+		file << vertexes[vertexes.size() - 1] << std::endl;
+		file << "	};" << std::endl;
+
+		file << "	float textures[] = {" << std::endl;
+		for (int i = 0; i < textures.size() - 1; i++) {
+			file << "		" << textures[i] << ",";
+			if ((i + 1) % 2 == 0) file << std::endl;
+		}
+		file << textures[textures.size() - 1] << std::endl;
+		file << "	};" << std::endl;
+
+		file << "	float normals[] = {" << std::endl;
+		for (int i = 0; i < normals.size() - 1; i++) {
+			file << "		" << normals[i] << ",";
+			if ((i + 1) % 4 == 0) file << std::endl;
+		}
+		file << normals[normals.size() - 1] << std::endl;
+		file << "	};" << std::endl;
+		file << "}";
+
+		file.close();
+	}
+
+	void convert(std::string filename, std::string namespacee) {
 
 		std::cout << "Reading model: " << filename << std::endl;
-		std::vector<model::vertex> vertexes;
-		std::vector<model::normal> normals;
-		std::vector<model::face> faces;
-		std::vector<model::texture> textures;
+		std::vector<converter::vertex> vertexes;
+		std::vector<converter::normal> normals;
+		std::vector<converter::face> faces;
+		std::vector<converter::texture> textures;
 
 		std::vector<float> vertexesResult;
 		std::vector<float> normalsResult;
 		std::vector<float> texturesResult;
-		
-		model::inflateToStructs(&vertexes, &normals, &faces, &textures, filename);
-		model::flattenToArrays(&vertexes, &normals, &faces, &textures, &vertexesResult, &normalsResult, &texturesResult);
 
-		objects::vertexCount[figure] = faces.size() * 6;
-		objects::vertices[figure] = vertexesResult;
-		objects::normals[figure] = normalsResult;
-		objects::texCoords[figure] = texturesResult;
-		for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+		converter::inflateToStructs(&vertexes, &normals, &faces, &textures, filename);
+		converter::flattenToArrays(&vertexes, &normals, &faces, &textures, &vertexesResult, &normalsResult, &texturesResult);
+		converter::createFile(filename, namespacee, vertexesResult, normalsResult, texturesResult);
 	}
 }
 
-namespace pUpdater {
-	std::ifstream file;
-	objects::Figure figure;
-	glm::mat4 M;
+namespace updater {
+	namespace general {
+		void createAndOpen(std::ifstream* file, objects::Figure figure) {
+			std::fstream f(objects::controllFilePath[figure], std::ios::out | std::ios::trunc);
+			f << "position: 0 0 0" << std::endl;
+			f << "scale: 1 1 1" << std::endl;
+			f << "rotation: 0 0 0" << std::endl;
+			f.close();
 
-	const char* selectFileName() {
-		switch (pUpdater::figure) {
-			case objects::Figure::board: {
-				return "pBoard.properties";
+			file->open(objects::controllFilePath[figure]);
+		}
+
+		void createAndOpen(std::ifstream* file, std::string path) {
+			std::fstream f(path, std::ios::out | std::ios::trunc);
+			f << "light1Pos: 0 0 0" << std::endl;
+			f << "light2Pos: 0 0 0" << std::endl;
+			f.close();
+
+			file->open(path);
+		}
+	}
+
+	namespace prop {
+		void updateScale(float x, float y, float z, glm::mat4* M) {
+			transformationsInject::scale(M, transformations::Axis::x, x);
+			transformationsInject::scale(M, transformations::Axis::y, y);
+			transformationsInject::scale(M, transformations::Axis::z, z);
+		}
+
+		void updatePosition(float x, float y, float z, glm::mat4* M) {
+			transformationsInject::move(M, transformations::Axis::x, x);
+			transformationsInject::move(M, transformations::Axis::y, y);
+			transformationsInject::move(M, transformations::Axis::z, z);
+		}
+
+		void updateRotation(float x, float y, float z, glm::mat4* M) {
+			transformationsInject::rotate(M, transformations::Axis::x, glm::radians(x));
+			transformationsInject::rotate(M, transformations::Axis::y, glm::radians(y));
+			transformationsInject::rotate(M, transformations::Axis::z, glm::radians(z));
+		}
+
+		void update(objects::Figure figure) {
+			if (!makeAutoUpdate) return;
+			std::ifstream file(objects::controllFilePath[figure]);
+			glm::mat4 M = glm::mat4(1.0f);
+
+			if (!file) updater::general::createAndOpen(&file, figure);
+
+			while (!file.eof()) {
+				std::string line;
+
+				std::getline(file, line);
+				std::vector<std::string> tokens = converter::split(line, " ");
+				std::string selector = tokens[0];
+				printg::vector(tokens);
+				if (selector == "position:") updater::prop::updatePosition(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]), &M);
+				else if (selector == "rotation:") updater::prop::updateRotation(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]), &M);
+				else if (selector == "scale:") updater::prop::updateScale(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]), &M);
 			}
+			objects::M[figure] = M;
+			file.close();
 		}
 	}
 
-	void updateScale(float x, float y, float z) {
-		transformationsInject::scale(&pUpdater::M, transformations::Axis::x, x);
-		transformationsInject::scale(&pUpdater::M, transformations::Axis::y, y);
-		transformationsInject::scale(&pUpdater::M, transformations::Axis::z, z);
-	}
-
-	void updatePosition(float x, float y, float z) {
-		transformationsInject::move(&pUpdater::M, transformations::Axis::x, x);
-		transformationsInject::move(&pUpdater::M, transformations::Axis::y, y);
-		transformationsInject::move(&pUpdater::M, transformations::Axis::z, z);
-	}
-
-	void updateRotation(float x, float y, float z) {
-		transformationsInject::rotate(&pUpdater::M, transformations::Axis::x, x);
-		transformationsInject::rotate(&pUpdater::M, transformations::Axis::y, y);
-		transformationsInject::rotate(&pUpdater::M, transformations::Axis::z, z);
-	}
-
-	void createAndOpen() {
-		std::fstream f(pUpdater::selectFileName(), std::ios::out | std::ios::trunc);
-		f << "position: 0 0 0" << std::endl;
-		f << "scale: 1 1 1" << std::endl;
-		f << "rotation: 0 0 0" << std::endl;
-		f.close();
-
-		pUpdater::file.open(pUpdater::selectFileName());
-	}
-
-	void update(objects::Figure figure) {
-		pUpdater::file.open(pUpdater::selectFileName());
-		pUpdater::figure = figure;
-		pUpdater::M = glm::mat4(1.0f);
-
-		if (!pUpdater::file) pUpdater::createAndOpen();
-
-		while (!pUpdater::file.eof()) {
-			std::string line;
-			std::getline(pUpdater::file, line);
-			std::vector<std::string> tokens = model::split(line, " ");
-			std::string selector = tokens[0];
-			printg::vector(tokens);
-			if (selector == "position:") pUpdater::updatePosition(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
-			else if (selector == "rotation:") pUpdater::updateRotation(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
-			else if (selector == "scale:") pUpdater::updateScale(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+	namespace settings {
+		void setLight1Pos(float x, float y, float z) {
+			global::light1Pos = glm::vec3(x, y, z);
 		}
-		objects::M[figure] = pUpdater::M;
-		pUpdater::file.close();
+
+		void setLight2Pos(float x, float y, float z) {
+			global::light2Pos = glm::vec3(x, y, z);
+		}
+
+		void update() {
+			if (!makeAutoUpdate) return;
+			std::ifstream file(global::settingsPath);
+
+			if (!file) updater::general::createAndOpen(&file, global::settingsPath);
+			while (!file.eof()) {
+				std::string line;
+				getline(file, line);
+				std::vector<std::string> tokens = converter::split(line, " ");
+				std::string selector = tokens[0];
+
+				printg::vector(tokens);
+
+				if (selector == "light1Pos:") updater::settings::setLight1Pos(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+				else if (selector == "light2Pos:") updater::settings::setLight2Pos(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+			}
+			file.close();
+		}
+	}
+
+	namespace texture {
+		void update(objects::Figure figure) {
+			objects::textureMap[figure] = render::readTexture(objects::imagePathA[figure], objects::textureUnitA[figure]);
+			objects::specularMap[figure] = render::readTexture(objects::imagePathB[figure], objects::textureUnitB[figure]);
+		}
+
+		void updateAll() {
+			updater::texture::update(objects::Figure::board);
+			updater::texture::update(objects::Figure::bishop_w1);
+		}
+	}
+
+	namespace shader {
+		void update() {
+			render::shaderProgram = new ShaderProgram("shaders/v_ct.glsl", NULL, "shaders/f_ct.glsl");
+		}
 	}
 }
 
@@ -724,15 +873,19 @@ namespace board {
 
 	void init() {
 		objects::M[board::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[board::figure] = "models/board/controll.prop";
+		objects::imagePathA[board::figure] = "models/board/texture.png";
+		objects::imagePathB[board::figure] = "models/board/specular.png";
+		objects::vertices[board::figure] = board_obj::vertices;
+		objects::texCoords[board::figure] = board_obj::textures;
+		objects::normals[board::figure] = board_obj::normals;
+		objects::vertexCount[board::figure] = board_obj::vertexCount;
 		objects::textureUnitA[board::figure] = GL_TEXTURE0;
 		objects::textureUnitB[board::figure] = GL_TEXTURE1;
 		objects::textureUnitNumberA[board::figure] = 0;
 		objects::textureUnitNumberB[board::figure] = 1;
-		objects::textureMap[board::figure] = render::readTexture("metal.png", GL_TEXTURE0);
-		objects::specularMap[board::figure] = render::readTexture("metal_spec.png", GL_TEXTURE1);
-		model::read("board.obj", board::figure);
-
-		for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+		objects::textureMap[board::figure] = render::readTextureA(board::figure);
+		objects::specularMap[board::figure] = render::readTextureB(board::figure);
 	}
 
 	void move(float distance, transformations::Axis axis) {
@@ -748,8 +901,50 @@ namespace board {
 	}
 
 	void render() {
-		pUpdater::update(board::figure);
+		updater::prop::update(board::figure);
 		render::render(board::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace bishop_w1{
+	const objects::Figure figure = objects::Figure::bishop_w1;
+
+	void init() {
+		objects::M[bishop_w1::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[bishop_w1::figure] = "models/bishop_w/controll.prop";
+		objects::imagePathA[bishop_w1::figure] = "models/bishop_w/texture.png";
+		objects::imagePathB[bishop_w1::figure] = "models/bishop_w/specular.png";
+		objects::vertices[bishop_w1::figure] = bishow_w_obj::vertices;
+		objects::texCoords[bishop_w1::figure] = bishow_w_obj::textures;
+		objects::normals[bishop_w1::figure] = bishow_w_obj::normals;
+		objects::vertexCount[bishop_w1::figure] = bishow_w_obj::vertexCount;
+		objects::textureUnitA[bishop_w1::figure] = GL_TEXTURE2;
+		objects::textureUnitB[bishop_w1::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[bishop_w1::figure] = 2;
+		objects::textureUnitNumberB[bishop_w1::figure] = 3;
+		objects::textureMap[bishop_w1::figure] = render::readTextureA(bishop_w1::figure);
+		objects::specularMap[bishop_w1::figure] = render::readTextureB(bishop_w1::figure);
+
+		for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(bishop_w1::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(bishop_w1::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(bishop_w1::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(bishop_w1::figure);
+		render::render(bishop_w1::figure);
 		// std::cout << figure;
 	}
 
@@ -832,6 +1027,8 @@ void keyCallback(GLFWwindow* window,int key,int scancode,int action,int mods) {
 		if (key == GLFW_KEY_D) observer::moveLeftRightDirection = 0;
 		if (key == GLFW_KEY_A) observer::moveLeftRightDirection = 0;
 		if (key == GLFW_KEY_R) observer::init();
+		if (key == GLFW_KEY_E) updater::texture::updateAll();
+		if (key = GLFW_KEY_Q) updater::shader::update();
     }
 }
 
@@ -853,6 +1050,7 @@ void initOpenGLProgram(GLFWwindow* window) {
 	glfwSetKeyCallback(window,keyCallback);
 	observer::init();
 	board::init();
+	bishop_w1::init();
 	render::init();
 	
 }
@@ -867,17 +1065,21 @@ void freeOpenGLProgram(GLFWwindow* window) {
 //Procedura rysująca zawartość sceny
 void drawScene(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod rysujący obraz******************
-	//observer::move();
+	updater::settings::update();
+	render::start();
 	observer::rotate();
 	observer::move();
 	board::render();
+	bishop_w1::render();
 	debug::printAll();
     glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
 }
 
+void test() {
+	converter::convert("models/bishop_w/object.obj", "bishow_w_obj");
+}
 
-int main(void)
-{
+void mainline() {
 	GLFWwindow* window; //Wskaźnik na obiekt reprezentujący okno
 
 	glfwSetErrorCallback(error_callback);//Zarejestruj procedurę obsługi błędów
@@ -909,7 +1111,7 @@ int main(void)
 	//Główna pętla
 	while (!glfwWindowShouldClose(window)) //Tak długo jak okno nie powinno zostać zamknięte
 	{
-        glfwSetTime(0); //Zeruj timer
+		glfwSetTime(0); //Zeruj timer
 		drawScene(window); //Wykonaj procedurę rysującą
 		glfwPollEvents(); //Wykonaj procedury callback w zalezności od zdarzeń jakie zaszły.
 	}
@@ -919,5 +1121,11 @@ int main(void)
 	glfwDestroyWindow(window); //Usuń kontekst OpenGL i okno
 	glfwTerminate(); //Zwolnij zasoby zajęte przez GLFW
 	exit(EXIT_SUCCESS);
+}
+
+int main(void)
+{
+	mainline();
+	// test();
 }
 
