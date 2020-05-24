@@ -134,6 +134,9 @@ namespace objects {
 	std::map<objects::Figure, const char*> imagePathA;
 	std::map<objects::Figure, const char*> imagePathB;
 	std::map<objects::Figure, std::string> controllFilePath;
+	std::map<objects::Figure, glm::vec3> ambientOcculusion;
+	std::map<objects::Figure, float> metallic;
+	std::map<objects::Figure, float> roughness;
 }
 
 namespace observer {
@@ -249,6 +252,9 @@ namespace render {
 		GLuint textureMap = objects::textureMap[figure];
 		GLuint specularMap = objects::specularMap[figure];
 		int vertexCount = objects::vertexCount[figure];
+		float roughness = objects::roughness[figure];
+		float metallic = objects::metallic[figure];
+		glm::vec3 ambientOcculusion = objects::ambientOcculusion[figure];
 		//for (int i = 0; i < 36; i++) std::cout << vertices[i] << " ";
 
 		glm::vec3 lightPossitions[] = {
@@ -266,9 +272,9 @@ namespace render {
 		glUniform1i(render::shaderProgram->u("specularMap"), textureUnitNumberB);
 		glUniform3fv(render::shaderProgram->u("lightPosition"), 2, glm::value_ptr(lightPossitions[0]));
 		glUniform4f(render::shaderProgram->u("cameraPosition"), observer::position.x, observer::position.y, observer::position.z, 1);
-		glUniform1f(render::shaderProgram->u("metallic"), 0.1f);
-		glUniform1f(render::shaderProgram->u("roughness"), 0.2f);
-		glUniform3f(render::shaderProgram->u("ao"), 1, 1, 1);
+		glUniform1f(render::shaderProgram->u("metallic"), metallic);
+		glUniform1f(render::shaderProgram->u("roughness"), roughness);
+		glUniform3f(render::shaderProgram->u("ao"), ambientOcculusion.x, ambientOcculusion.y, ambientOcculusion.z);
 
 		glEnableVertexAttribArray(render::shaderProgram->a("vertexPosition"));  //Włącz przesyłanie danych do atrybutu vertex
 		glVertexAttribPointer(render::shaderProgram->a("vertexPosition"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
@@ -763,6 +769,9 @@ namespace updater {
 			f << "position: 0 0 0" << std::endl;
 			f << "scale: 1 1 1" << std::endl;
 			f << "rotation: 0 0 0" << std::endl;
+			f << "ambient: 0 0 0" << std::endl;
+			f << "roughness: 0" << std::endl;
+			f << "metallic: 0" << std::endl;
 			f.close();
 
 			file->open(objects::controllFilePath[figure]);
@@ -797,6 +806,11 @@ namespace updater {
 			transformationsInject::rotate(M, transformations::Axis::z, glm::radians(z));
 		}
 
+		void  setAmbientOcculusion(float x, float y, float z, objects::Figure figure) {
+			glm::vec3 ao = glm::vec3(x, y, z);
+			objects::ambientOcculusion[figure] = ao;
+		}
+
 		void update(objects::Figure figure) {
 			if (!makeAutoUpdate) return;
 			std::ifstream file(objects::controllFilePath[figure]);
@@ -814,6 +828,9 @@ namespace updater {
 				if (selector == "position:") updater::prop::updatePosition(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]), &M);
 				else if (selector == "rotation:") updater::prop::updateRotation(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]), &M);
 				else if (selector == "scale:") updater::prop::updateScale(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]), &M);
+				else if (selector == "metallic:") objects::metallic[figure] = std::stof(tokens[1]);
+				else if (selector == "ambient:") updater::prop::setAmbientOcculusion(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]), figure);
+				else if (selector == "roughness:") objects::roughness[figure] = std::stof(tokens[1]);
 			}
 			objects::M[figure] = M;
 			file.close();
@@ -886,6 +903,9 @@ namespace board {
 		objects::textureUnitNumberB[board::figure] = 1;
 		objects::textureMap[board::figure] = render::readTextureA(board::figure);
 		objects::specularMap[board::figure] = render::readTextureB(board::figure);
+		objects::ambientOcculusion[board::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[board::figure] = 0;
+		objects::metallic[board::figure] = 0.5;
 	}
 
 	void move(float distance, transformations::Axis axis) {
@@ -926,8 +946,11 @@ namespace bishop_w1{
 		objects::textureUnitNumberB[bishop_w1::figure] = 3;
 		objects::textureMap[bishop_w1::figure] = render::readTextureA(bishop_w1::figure);
 		objects::specularMap[bishop_w1::figure] = render::readTextureB(bishop_w1::figure);
+		objects::ambientOcculusion[bishop_w1::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[bishop_w1::figure] = 0;
+		objects::metallic[bishop_w1::figure] = 0.5;
 
-		for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
 	}
 
 	void move(float distance, transformations::Axis axis) {
@@ -1076,7 +1099,8 @@ void drawScene(GLFWwindow* window) {
 }
 
 void test() {
-	converter::convert("models/bishop_w/object.obj", "bishow_w_obj");
+	converter::convert("models/bishop_b/object.obj", "bishop_b_obj");
+	// converter::convert("models/rook_w/object.obj", "rook_w_obj");
 }
 
 void mainline() {
@@ -1125,7 +1149,7 @@ void mainline() {
 
 int main(void)
 {
-	mainline();
-	// test();
+	// mainline();
+	test();
 }
 

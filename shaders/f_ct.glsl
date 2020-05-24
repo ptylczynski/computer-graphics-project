@@ -16,7 +16,7 @@ in vec3 ToCamera;
 // parameters of material
 uniform float metallic;
 uniform float roughness;
-uniform float ao;
+uniform vec3 ao;
 uniform sampler2D textureMap;
 uniform sampler2D specularMap;
 
