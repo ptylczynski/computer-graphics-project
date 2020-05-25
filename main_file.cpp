@@ -45,7 +45,7 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 
 const bool isDebugActive = false;
 const bool autoUpdateSettings = true;
-const bool autoUpdateProp = false;
+bool autoUpdateProp = false;
 
 namespace mathematics {
 	void min(float* value, float min) {
@@ -83,6 +83,9 @@ namespace global {
 	glm::vec3 light1Pos;
 	glm::vec3 light2Pos;
 	const char* settingsPath = "settings.prop";
+	const char* stepsPath = "g.game";
+	float moveStep;
+	float moveOffset;
 
 	void init() {
 		light1Pos = glm::vec3(0.0f, 12.0f, -4.0f);
@@ -781,6 +784,44 @@ namespace updater {
 			objects::M[figure] = M;
 			file.close();
 		}
+
+		void updateAll() {
+			std::cout << "updating all" << std::endl;
+			updater::prop::update(objects::Figure::board);
+
+			updater::prop::update(objects::Figure::bishop_w1);
+			updater::prop::update(objects::Figure::bishop_w2);
+			updater::prop::update(objects::Figure::bishop_b1);
+			updater::prop::update(objects::Figure::bishop_b2);
+			updater::prop::update(objects::Figure::king_b);
+			updater::prop::update(objects::Figure::king_w);
+			updater::prop::update(objects::Figure::queen_w);
+			updater::prop::update(objects::Figure::queen_b);
+			updater::prop::update(objects::Figure::rook_w1);
+			updater::prop::update(objects::Figure::rook_w2);
+			updater::prop::update(objects::Figure::rook_b1);
+			updater::prop::update(objects::Figure::rook_b2);
+			updater::prop::update(objects::Figure::knight_w1);
+			updater::prop::update(objects::Figure::knight_w2);
+			updater::prop::update(objects::Figure::knight_b1);
+			updater::prop::update(objects::Figure::knight_b2);
+			updater::prop::update(objects::Figure::pawn_w1);
+			updater::prop::update(objects::Figure::pawn_w2);
+			updater::prop::update(objects::Figure::pawn_w3);
+			updater::prop::update(objects::Figure::pawn_w4);
+			updater::prop::update(objects::Figure::pawn_w5);
+			updater::prop::update(objects::Figure::pawn_w6);
+			updater::prop::update(objects::Figure::pawn_w7);
+			updater::prop::update(objects::Figure::pawn_w8);
+			updater::prop::update(objects::Figure::pawn_b1);
+			updater::prop::update(objects::Figure::pawn_b2);
+			updater::prop::update(objects::Figure::pawn_b3);
+			updater::prop::update(objects::Figure::pawn_b4);
+			updater::prop::update(objects::Figure::pawn_b5);
+			updater::prop::update(objects::Figure::pawn_b6);
+			updater::prop::update(objects::Figure::pawn_b7);
+			updater::prop::update(objects::Figure::pawn_b8);
+		}
 	}
 
 	namespace settings {
@@ -803,10 +844,14 @@ namespace updater {
 				std::vector<std::string> tokens = converter::split(line, " ");
 				std::string selector = tokens[0];
 
+
 				printg::vector(tokens);
 
 				if (selector == "light1Pos:") updater::settings::setLight1Pos(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
 				else if (selector == "light2Pos:") updater::settings::setLight2Pos(std::stof(tokens[1]), std::stof(tokens[2]), std::stof(tokens[3]));
+				else if (selector == "manual:") autoUpdateProp = (std::stoi(tokens[1]) == 1) ? true : false;
+				else if (selector == "moveStep:") global::moveStep = std::stof(tokens[1]);
+				else if (selector == "moveOffset") global::moveOffset = std::stof(tokens[1]);
 			}
 			file.close();
 		}
@@ -2348,6 +2393,274 @@ namespace pawn_w8 {
 
 }
 
+namespace all {
+
+	void init() {
+		std::cout << "initalizing all" << std::endl;
+		board::init();
+
+		bishop_w1::init(); 	bishop_w2::init();	bishop_b1::init();	bishop_b2::init();
+		king_b::init();		king_w::init();
+		queen_w::init();	queen_b::init();
+		rook_w1::init();	rook_w2::init();	rook_b1::init();	rook_b2::init();
+		knight_w1::init();	knight_w2::init();	knight_b1::init();	knight_b2::init();
+		pawn_w1::init();	pawn_w2::init();	pawn_w3::init();	pawn_w4::init();
+		pawn_w5::init();	pawn_w6::init();	pawn_w7::init();	pawn_w8::init();
+		pawn_b1::init();	pawn_b2::init();	pawn_b3::init();	pawn_b4::init();
+		pawn_b5::init();	pawn_b6::init();	pawn_b7::init();	pawn_b8::init();
+	}
+
+	void render() {
+		std::cout << "rendering all" << std::endl;
+		board::render();
+
+		bishop_w1::render(); 	bishop_w2::render();	bishop_b1::render();	bishop_b2::render();
+		king_b::render();		king_w::render();
+		queen_w::render();		queen_b::render();
+		rook_w1::render();		rook_w2::render();		rook_b1::render();		rook_b2::render();
+		knight_w1::render();	knight_w2::render();	knight_b1::render();	knight_b2::render();
+		pawn_w1::render();		pawn_w2::render();		pawn_w3::render();		pawn_w4::render();
+		pawn_w5::render();		pawn_w6::render();		pawn_w7::render();		pawn_w8::render();
+		pawn_b1::render();		pawn_b2::render();		pawn_b3::render();		pawn_b4::render();
+		pawn_b5::render();		pawn_b6::render();		pawn_b7::render();		pawn_b8::render();
+	}
+}
+
+namespace animator {
+	enum Action {move, remove};
+	struct step {
+		objects::Figure figure;
+		animator::Action action;
+		std::pair<int, int> newPosition;
+	};
+
+	std::vector<animator::step> steps;
+	std::ifstream file;
+	int stepsIterator;
+	bool isAnimating = false;
+	const float aimationSpeed = 1;
+	bool noAnimations = false;
+	glm::vec4 endPos;
+	float totalDist;
+
+	animator::Action selectAction(std::string action) {
+		if (action == "MOVE") return animator::Action::move;
+		if (action == "REMOVE") return animator::Action::remove;
+	}
+
+	objects::Figure selectFigure(std::string figure) {
+		if (figure == "RW1") return objects::Figure::rook_w1;
+		if (figure == "RW2") return objects::Figure::rook_w2;
+		if (figure == "RB1") return objects::Figure::rook_b1;
+		if (figure == "RB2") return objects::Figure::rook_b2;
+		if (figure == "QW") return objects::Figure::queen_w;
+		if (figure == "QB") return objects::Figure::queen_b;
+		if (figure == "KW") return objects::Figure::king_w;
+		if (figure == "KB") return objects::Figure::king_b;
+		if (figure == "BB1") return objects::Figure::bishop_b1;
+		if (figure == "BB2") return objects::Figure::bishop_b2;
+		if (figure == "BW1") return objects::Figure::bishop_w1;
+		if (figure == "BW2") return objects::Figure::bishop_w2;
+		if (figure == "KNW1") return objects::Figure::knight_w1;
+		if (figure == "KNW2") return objects::Figure::knight_w2;
+		if (figure == "KNB1") return objects::Figure::knight_b1;
+		if (figure == "KNB2") return objects::Figure::knight_b2;
+		if (figure == "PW1") return objects::Figure::pawn_w1;
+		if (figure == "PW2") return objects::Figure::pawn_w2;
+		if (figure == "PW3") return objects::Figure::pawn_w3;
+		if (figure == "PW4") return objects::Figure::pawn_w4;
+		if (figure == "PW5") return objects::Figure::pawn_w5;
+		if (figure == "PW6") return objects::Figure::pawn_w6;
+		if (figure == "PW7") return objects::Figure::pawn_w7;
+		if (figure == "PW8") return objects::Figure::pawn_w8;
+		if (figure == "PB1") return objects::Figure::pawn_b1;
+		if (figure == "PB2") return objects::Figure::pawn_b2;
+		if (figure == "PB3") return objects::Figure::pawn_b3;
+		if (figure == "PB4") return objects::Figure::pawn_b4;
+		if (figure == "PB5") return objects::Figure::pawn_b5;
+		if (figure == "PB6") return objects::Figure::pawn_b6;
+		if (figure == "PB7") return objects::Figure::pawn_b7;
+		if (figure == "PB8") return objects::Figure::pawn_b8;
+	}
+
+	animator::step parse(std::string line) {
+		animator::step s;
+		std::vector<std::string> tokens = converter::split(line, " ");
+		// line format
+		// ACTION_NAME FIGURE NEW_POS1 NEW_POS2 IS_NEXT_NEEDED(+)
+		s.action = animator::selectAction(tokens[0]);
+		s.figure = animator::selectFigure(tokens[1]);
+		if(tokens.size() == 4) s.newPosition = std::make_pair(std::stoi(tokens[2]), std::stoi(tokens[3]));
+		return s;
+	}
+
+	void readSteps() {
+		std::cout << "Reading steps" << std::endl;
+		std::cout << global::stepsPath << std::endl;
+		animator::file.open(global::stepsPath);
+		if (!animator::file) return;
+		while (!animator::file.eof()) {
+			std::string line;
+			getline(animator::file, line);
+			animator::step s = animator::parse(line);
+			std::cout << "nextPos: x: " << s.newPosition.first << " y: " << s.newPosition.second << std::endl;
+			std::cout << "action: " << s.action << std::endl;
+			std::cout << std::endl;
+			animator::steps.push_back(s);
+		}
+		animator::file.close();
+	}
+
+	int sign(float val) {
+		if (val < 0) return -1;
+		else if (val > 0) return 1;
+		return 0;
+	}
+
+	void setMoveTransformation() {
+		objects::Figure figure = animator::steps[animator::stepsIterator].figure;
+		int row = animator::steps[animator::stepsIterator].newPosition.first;
+		int col = animator::steps[animator::stepsIterator].newPosition.second;
+
+		float x = row * global::moveStep;
+		float z = col * global::moveStep;
+		/*
+		std::cout << "row_no: " << row << " col_no: " << col << std::endl;
+		std::cout << "moveOffset: " << global::moveOffset << " moveStep: " << global::moveStep << std::endl;
+		*/
+		glm::vec4 currPos = objects::M[figure] * glm::vec4(1.0f);
+		if (objects::controllFilePath[figure].find("_b") != std::string::npos) animator::endPos = glm::translate(objects::M[figure], glm::vec3(x, z, 0)) * glm::vec4(1.0f);
+		else animator::endPos = glm::translate(objects::M[figure], glm::vec3(-x, -z, 0)) * glm::vec4(1.0f);
+		animator::totalDist = glm::distance(endPos, currPos);
+	}
+
+	void setRemoveTransformation() {
+		objects::Figure figure = animator::steps[animator::stepsIterator].figure;
+		glm::vec4 currPos = objects::M[figure] * glm::vec4(1.0f);
+		animator::endPos = glm::translate(objects::M[figure], glm::vec3(0, 0, -15)) * glm::vec4(1.0f);
+		animator::totalDist = glm::distance(endPos, currPos);
+	}
+
+	float speedCoeff(float dist) {
+		float progress = dist / animator::totalDist;
+		return animator::aimationSpeed * (-pow((progress - 0.5), 2)) * 3 + 1;
+	}
+
+	void makeMoveAnimation() {
+		objects::Figure figure = animator::steps[animator::stepsIterator].figure;
+		int row = animator::steps[animator::stepsIterator].newPosition.first;
+		int col = animator::steps[animator::stepsIterator].newPosition.second;
+		glm::vec4 currPos = objects::M[figure] * glm::vec4(1.0f);
+		glm::vec3 diff = glm::vec3(animator::endPos - currPos);
+		glm::vec3 transformation;
+
+		float dist = glm::distance(currPos, animator::endPos);
+
+		std::cout << "Animating" << std::endl;
+		std::cout << "row: " << row << "col: " << col << std::endl;
+		std::cout << "currPos: x: " << currPos.x << " y: " << currPos.y << " z: " << currPos.z << std::endl;
+		std::cout << "endPos x: " << animator::endPos.x << " y: " << animator::endPos.y << " z: " << animator::endPos.z << std::endl;
+		std::cout << "diff x: " << diff.x << " y: " << diff.y << " z: " << diff.z << std::endl;
+
+		if (dist < 0.5) {
+			std::cout << "fixing pos" << std::endl;
+			transformation = diff;
+			animator::isAnimating = false;
+		}
+		else {
+			transformation = glm::normalize(diff) * animator::speedCoeff(dist);
+		}
+
+		glm::vec3 modelAdjusted;
+
+		std::cout << objects::controllFilePath[figure].find("_b") << std::endl;
+		if (objects::controllFilePath[figure].find("_b") != std::string::npos) modelAdjusted = glm::vec3(transformation.x, -transformation.z, transformation.y);
+		else modelAdjusted = glm::vec3(-transformation.x, transformation.z, transformation.y);
+
+
+
+		objects::M[figure] = glm::translate(objects::M[figure], modelAdjusted * animator::speedCoeff(dist));
+		std::cout << "animVec x: " << modelAdjusted.x << " y: " << modelAdjusted.y << " z: " << modelAdjusted.z << std::endl;
+	}
+
+	void makeRemoveAnimation() {
+		objects::Figure figure = animator::steps[animator::stepsIterator].figure;
+		glm::vec4 currPos = objects::M[figure] * glm::vec4(1.0f);
+		glm::vec3 diff = glm::vec3(animator::endPos - currPos);
+		glm::vec3 transformation;
+
+		float dist = glm::distance(currPos, animator::endPos);
+
+		std::cout << "Animating" << std::endl;
+		std::cout << "currPos: x: " << currPos.x << " y: " << currPos.y << " z: " << currPos.z << std::endl;
+		std::cout << "endPos x: " << animator::endPos.x << " y: " << animator::endPos.y << " z: " << animator::endPos.z << std::endl;
+		std::cout << "diff x: " << diff.x << " y: " << diff.y << " z: " << diff.z << std::endl;
+
+		if (dist < 0.5) {
+			std::cout << "fixing pos" << std::endl;
+			transformation = diff;
+			animator::isAnimating = false;
+		}
+		else {
+			transformation = glm::normalize(diff) * animator::speedCoeff(dist);
+		}
+
+		glm::vec3 modelAdjusted = glm::vec3(transformation.x, transformation.z, transformation.y);;
+
+		objects::M[figure] = glm::translate(objects::M[figure], modelAdjusted * animator::speedCoeff(dist));
+		std::cout << "animVec x: " << modelAdjusted.x << " y: " << modelAdjusted.y << " z: " << modelAdjusted.z << std::endl;
+	}
+
+	void makeAnimation() {
+		if (animator::steps[animator::stepsIterator].action == animator::Action::move) animator::makeMoveAnimation();
+		else animator::makeRemoveAnimation();
+	}
+
+	void startNewAnimation() {
+		animator::stepsIterator++;
+		if (animator::stepsIterator >= animator::steps.size()) {
+			animator::noAnimations = true;
+			animator::isAnimating = false;
+		}
+		else {
+			if (animator::steps[animator::stepsIterator].action == animator::Action::move) animator::setMoveTransformation();
+			else animator::setRemoveTransformation();
+		}
+		std::cout << "Starting new animation: i: " << animator::stepsIterator << " no animations: " << animator::noAnimations << std::endl;
+	}
+
+	void animate() {
+		std::cout << "Animation call" << std::endl;
+		std::cout << "isAnimating: " << animator::isAnimating << " noAnimations: " << animator::noAnimations << std::endl;
+		if (autoUpdateProp) return;
+		if (animator::isAnimating && !animator::noAnimations) animator::makeAnimation();
+	}
+
+	void nextAnimation() {
+		std::cout << "new animation request" << std::endl;
+		if (isAnimating) return;
+		if (!animator::noAnimations) {
+			animator::isAnimating = true;
+			animator::startNewAnimation();
+		}
+	}
+
+	void init() {
+		if (autoUpdateProp) return;
+		animator::steps.clear();
+
+		animator::readSteps();
+		animator::stepsIterator = -1;
+
+		animator::isAnimating = false;
+		animator::noAnimations = false;
+
+		autoUpdateProp = true;
+		updater::prop::updateAll();
+		autoUpdateProp = false;
+	}
+}
+
 namespace debug {
 	void printDelimiter() {
 		std::cout << "----------------------" << std::endl;
@@ -2426,7 +2739,9 @@ void keyCallback(GLFWwindow* window,int key,int scancode,int action,int mods) {
 		if (key == GLFW_KEY_A) observer::moveLeftRightDirection = 0;
 		if (key == GLFW_KEY_R) observer::init();
 		if (key == GLFW_KEY_E) updater::texture::updateAll();
-		if (key = GLFW_KEY_Q) updater::shader::update();
+		if (key == GLFW_KEY_Q) updater::shader::update();
+		if (key == GLFW_KEY_Z) animator::init();
+		if (key == GLFW_KEY_SPACE) animator::nextAnimation();
     }
 }
 
@@ -2444,21 +2759,11 @@ void initOpenGLProgram(GLFWwindow* window) {
 	glEnable(GL_DEPTH_TEST);
 	glfwSetWindowSizeCallback(window,windowResizeCallback);
 	glfwSetKeyCallback(window,keyCallback);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	observer::init();
-	board::init();
-
-	bishop_w1::init(); 	bishop_w2::init();	bishop_b1::init();	bishop_b2::init();
-	king_b::init();		king_w::init();
-	queen_w::init();	queen_b::init();
-	rook_w1::init();	rook_w2::init();	rook_b1::init();	rook_b2::init();
-	knight_w1::init();	knight_w2::init();	knight_b1::init();	knight_b2::init();
-	pawn_w1::init();	pawn_w2::init();	pawn_w3::init();	pawn_w4::init();
-	pawn_w5::init();	pawn_w6::init();	pawn_w7::init();	pawn_w8::init();
-	pawn_b1::init();	pawn_b2::init();	pawn_b3::init();	pawn_b4::init();
-	pawn_b5::init();	pawn_b6::init();	pawn_b7::init();	pawn_b8::init();
-
+	all::init();
 	render::init();
-	
+	animator::init();
 }
 
 //Zwolnienie zasobów zajętych przez program
@@ -2471,20 +2776,11 @@ void freeOpenGLProgram(GLFWwindow* window) {
 void drawScene(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod rysujący obraz******************
 	updater::settings::update();
+	animator::animate();
 	render::start();
 	observer::rotate();
 	observer::move();
-	board::render();
-
-	bishop_w1::render(); 	bishop_w2::render();	bishop_b1::render();	bishop_b2::render();
-	king_b::render();		king_w::render();
-	queen_w::render();		queen_b::render();
-	rook_w1::render();		rook_w2::render();		rook_b1::render();		rook_b2::render();
-	knight_w1::render();	knight_w2::render();	knight_b1::render();	knight_b2::render();
-	pawn_w1::render();		pawn_w2::render();		pawn_w3::render();		pawn_w4::render();
-	pawn_w5::render();		pawn_w6::render();		pawn_w7::render();		pawn_w8::render();
-	pawn_b1::render();		pawn_b2::render();		pawn_b3::render();		pawn_b4::render();
-	pawn_b5::render();		pawn_b6::render();		pawn_b7::render();		pawn_b8::render();
+	all::render();
 	debug::printAll();
     glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
 }

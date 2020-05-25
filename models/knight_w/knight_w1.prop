@@ -2,5 +2,5 @@ position: 27.5 0 0
 scale: 1 1 1
 rotation: -90 0 180
 ambient: 0 0 0
-roughness: 0.3
+roughness: 0.2
 metallic: 0.15

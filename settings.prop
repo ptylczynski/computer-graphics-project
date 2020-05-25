@@ -1,3 +1,6 @@
 light1Pos: 0 20 20
 light2Pos: 0 20 -20
-manual: 1
+actions: g.game
+moveStep: 5.5
+moveOffset: 2.75
+manual: 0
