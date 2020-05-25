@@ -1,17 +1,13 @@
 #version 330 core
-out vec4 FragColor;
+out vec4 FragmentColor;
 
 // texture coordinates
-in vec2 TexCoords;
+in vec2 TextureCoords;
 
 // normal coordinates
-in vec3 Normal;
-
+in vec4 VertexNormal;
+in vec4 VertexPosition;
 // interpolated vector pointing light from vertex
-in vec3 ToLight[2];
-
-// interpolated vector pointing camera from vertex
-in vec3 ToCamera;
 
 // parameters of material
 uniform float metallic;
@@ -19,6 +15,9 @@ uniform float roughness;
 uniform vec3 ao;
 uniform sampler2D textureMap;
 uniform sampler2D specularMap;
+uniform vec3 cameraPosition;
+uniform mat4 M;
+uniform vec3 lightPosition[2];
 
 const float PI = 3.14159265359;
  
@@ -34,13 +33,13 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 // as alpha used roughness
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
-    float a      = roughness*roughness;
-    float a2     = a*a;
-    float NdotH  = max(dot(N, H), 0.0);
+    float alpha      = roughness*roughness;
+    float alpha2     = alpha*alpha;
+    float NdotH  = clamp(dot(N, H), 0, 1);
     float NdotH2 = NdotH*NdotH;
 	
-    float num   = a2;
-    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    float num   = alpha2;
+    float denom = (NdotH2 * (alpha2 - 1.0) + 1.0);
     denom = PI * denom * denom;
 	
     return num / denom;
@@ -64,8 +63,8 @@ float GeometrySchlickGGX(float NdotV, float roughness)
 // and by geometry shadowing (V part)
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 {
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotV = clamp(dot(N, V), 0, 1);
+    float NdotL = clamp(dot(N, L), 0, 1);
     float ggx2  = GeometrySchlickGGX(NdotV, roughness);
     float ggx1  = GeometrySchlickGGX(NdotL, roughness);
 	
@@ -73,49 +72,39 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 }
 
 void main()
-{		
-    vec3 lightColors[2] = {
+{	
+    vec3 lightColors[] = {
         vec3(1,0.5,0.5),
         vec3(0.5,0.5,1)
     };
 
-    vec3 albedo = texture(textureMap, TexCoords).xyz;
-    vec3 reflectionColor = texture(specularMap, TexCoords).xyz;
-    vec3 N = normalize(Normal);
-    vec3 V = normalize(ToCamera);
+    vec3 albedo = texture(textureMap, TextureCoords).xyz;
+    vec3 specular = texture(specularMap, TextureCoords).xyz;
+    vec3 WorldPos = (M * VertexPosition).xyz; 
+    vec3 N = normalize(M * VertexNormal).xyz;
+    vec3 V = normalize(cameraPosition - WorldPos);
 
-    // each material has its own fresnel coefficient, however
-    // variation of them for non conducting materials is close
-    // to zero, so assumption of equal (approx. 0.04 value) 
-    // makes do and hold
-    // for metalic materials which range of occurence is wide
-    // interpolation of coefficient is crucial
     vec3 F0 = vec3(0.04); 
     F0 = mix(F0, albedo, metallic);
 	           
-    // integral over irradiation -> total refraction over all
-    // light source
-    // works perfectly if any emitive materials used
+    // equation of reflectance
     vec3 Lo = vec3(0.0);
     for(int i = 0; i < 2; ++i) 
     {
-        vec3 L = normalize(ToLight[i]);
-        vec3 H = normalize(L + V);
-
-        // total radiance - light througcomming solid angle and alighting
-        // surface. Both solid angle and surfece are small enought to be
-        // one pixel and single ray - vector from light
-        float distance    = length(ToLight[i]);
-        float attenuation = 1.0 / (distance * distance) * 600;
+        // radiance of each light with attenuation
+        vec3 L = normalize(lightPosition[i] - WorldPos);
+        vec3 H = normalize(V + L);
+        float distance    = length(lightPosition[i] - WorldPos);
+        float attenuation = 1.0 / (distance * distance) * 1200;
         vec3 radiance     = lightColors[i] * attenuation;        
         
-        // cook-torrance brdm
-        // define contriution of each ray to final reflection value
+        // cook-torrance element
         float NDF = DistributionGGX(N, H, roughness);        
         float G   = GeometrySmith(N, V, L, roughness);      
         vec3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);       
         
-        vec3 kS = F * reflectionColor;
+        // reflection to refraction
+        vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metallic;	  
         
@@ -123,17 +112,16 @@ void main()
         float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0);
         vec3 specular     = numerator / max(denominator, 0.001);  
             
-        float NdotL = max(dot(N, L), 0.0);
-        // grand total 
+        // grand total of reflectance
+        float NdotL = max(dot(N, L), 0.0);                
         Lo += (kD * albedo / PI + specular) * radiance * NdotL; 
     }   
-    // adding ambient color
+  
     vec3 ambient = vec3(0.03) * albedo * ao;
     vec3 color = ambient + Lo;
 	
-    // adjustement of gamma (?)
     color = color / (color + vec3(1.0));
     color = pow(color, vec3(1.0/2.2));  
    
-    FragColor = vec4(color, 1.0);
-}  
+    FragmentColor = vec4(color, 1.0);
+} 

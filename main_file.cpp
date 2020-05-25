@@ -34,11 +34,18 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include <map>
 #include <fstream>
 #include "models/board/object.obj.h"
-#include "models/bishop_w/object.obj.h"
+#include "models/bishop_b/object.obj.h"
+#include "models/pawn_b/object.obj.h"
+#include "models/rook_b/object.obj.h"
+#include "models/queen_b/object.obj.h"
+#include "models/king_b/object.obj.h"
+#include "models/knight_b/object.obj.h"
+
 
 
 const bool isDebugActive = false;
-const bool makeAutoUpdate = true;
+const bool autoUpdateSettings = true;
+const bool autoUpdateProp = false;
 
 namespace mathematics {
 	void min(float* value, float min) {
@@ -147,8 +154,8 @@ namespace observer {
 	int moveLeftRightDirection;
 	int moveForwardDirection;
 	float distance;
-	const float rotationSpeed = 0.1;
-	const float moveSpeed = 0.2;
+	const float rotationSpeed = 0.2;
+	const float moveSpeed = 0.5;
 	float totalRotation;
 	float totalYaw;
 
@@ -435,10 +442,6 @@ namespace converter {
 		int v3;
 		int n3;
 		int t3;
-
-		int v4;
-		int n4;
-		int t4;
 	};
 
 	struct normal {
@@ -487,11 +490,6 @@ namespace converter {
 					<< "\n\tvertex_no: " << f.v3
 					<< "\n\tnormal_no: " << f.n3
 					<< "\n\ttexture_no: " << f.t3 << std::endl;
-
-				std::cout << "Vertex 4: "
-					<< "\n\tvertex_no: " << f.v4
-					<< "\n\tnormal_no: " << f.n4
-					<< "\n\ttexture_no: " << f.t4 << std::endl;
 			}
 		}
 	}
@@ -601,11 +599,6 @@ namespace converter {
 				face.t3 = (subtokens3[1] == "") ? -1 : std::stoi(subtokens3[1]) - 1;
 				face.n3 = std::stoi(subtokens3[2]) - 1;
 
-				std::vector<std::string> subtokens4 = converter::split(tokens[4], "/");
-				face.v4 = std::stoi(subtokens4[0]) - 1;
-				face.t4 = (subtokens4[1] == "") ? -1 : std::stoi(subtokens4[1]) - 1;
-				face.n4 = std::stoi(subtokens4[2]) - 1;
-
 				converter::print::face(face);
 				faces->push_back(face);
 			}
@@ -617,20 +610,12 @@ namespace converter {
 		std::cout << "Flattening to arrays" << std::endl;
 		std::cout << faces->size() << std::endl;
 		for (unsigned int i = 0; i < faces->size(); i++) {
-			/*
-				1     2
-				*-----*
-				|  /  |
-				*-----*
-				4     3
-			*/
-
 			std::cout << "face_no: " << i << std::endl;
 			converter::face face = faces->at(i);
 			converter::print::face(face);
 			// upper triangle
 			// vertices
-			converter::flatten(vertexesFlatten, vertexes->at(face.v4));
+			converter::flatten(vertexesFlatten, vertexes->at(face.v3));
 			if(isDebugActive) std::cout << "Tailing vertexesFlatten: ";
 			printg::last(vertexesFlatten, 4);
 			converter::flatten(vertexesFlatten, vertexes->at(face.v2));
@@ -642,7 +627,7 @@ namespace converter {
 
 			// textures
 			if (face.t1 != -1 && face.t2 != -1 && face.t3 != -1) {
-				converter::flatten(texturesFlatten, textures->at(face.t4));
+				converter::flatten(texturesFlatten, textures->at(face.t3));
 				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
 				printg::last(texturesFlatten, 2);
 				converter::flatten(texturesFlatten, textures->at(face.t2));
@@ -657,7 +642,7 @@ namespace converter {
 			}
 
 			// normals
-			converter::flatten(normalsFlatten, normals->at(face.n4));
+			converter::flatten(normalsFlatten, normals->at(face.n3));
 			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 			converter::flatten(normalsFlatten, normals->at(face.n2));
@@ -665,45 +650,6 @@ namespace converter {
 			printg::last(normalsFlatten, 4);
 			converter::flatten(normalsFlatten, normals->at(face.n1));
 			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
-			printg::last(normalsFlatten, 4);
-
-			// bottom triangle
-			// vertices
-			converter::flatten(vertexesFlatten, vertexes->at(face.v4));
-			if (isDebugActive) std::cout << "Tailing vertexesFlatten: ";
-			printg::last(vertexesFlatten, 4);
-			converter::flatten(vertexesFlatten, vertexes->at(face.v3));
-			if (isDebugActive) std::cout << "Tailing vertexesFlatten: ";
-			printg::last(vertexesFlatten, 4);
-			converter::flatten(vertexesFlatten, vertexes->at(face.v2));
-			if (isDebugActive) std::cout << "Tailing vertexesFlatten: ";
-			printg::last(vertexesFlatten, 4);
-
-			//textures
-			if (face.t2 != -1 && face.t3 != -1 && face.t4 != -1) {
-				converter::flatten(texturesFlatten, textures->at(face.t4));
-				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
-				printg::last(texturesFlatten, 2);
-				converter::flatten(texturesFlatten, textures->at(face.t3));
-				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
-				printg::last(texturesFlatten, 2);
-				converter::flatten(texturesFlatten, textures->at(face.t2));
-				if (isDebugActive) std::cout << "Tailing texturesFlatten: ";
-				printg::last(texturesFlatten, 2);
-			}
-			else {
-				for (int j = 0; j < 6; j++) texturesFlatten->push_back(0);
-			}
-
-			// normals
-			converter::flatten(normalsFlatten, normals->at(face.n4));
-			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
-			printg::last(normalsFlatten, 4);
-			converter::flatten(normalsFlatten, normals->at(face.n3));
-			if (isDebugActive) std::cout << "Tailing normalsFlatten: ";
-			printg::last(normalsFlatten, 4);
-			converter::flatten(normalsFlatten, normals->at(face.n2));
-			if (isDebugActive)std::cout << "Tailing normalsFlatten: ";
 			printg::last(normalsFlatten, 4);
 		}
 
@@ -812,7 +758,7 @@ namespace updater {
 		}
 
 		void update(objects::Figure figure) {
-			if (!makeAutoUpdate) return;
+			if (!autoUpdateProp) return;
 			std::ifstream file(objects::controllFilePath[figure]);
 			glm::mat4 M = glm::mat4(1.0f);
 
@@ -847,7 +793,7 @@ namespace updater {
 		}
 
 		void update() {
-			if (!makeAutoUpdate) return;
+			if (!autoUpdateSettings) return;
 			std::ifstream file(global::settingsPath);
 
 			if (!file) updater::general::createAndOpen(&file, global::settingsPath);
@@ -932,14 +878,15 @@ namespace bishop_w1{
 	const objects::Figure figure = objects::Figure::bishop_w1;
 
 	void init() {
+		
 		objects::M[bishop_w1::figure] = glm::mat4(1.0f);
-		objects::controllFilePath[bishop_w1::figure] = "models/bishop_w/controll.prop";
+		objects::controllFilePath[bishop_w1::figure] = "models/bishop_w/bishop_w1.prop";
 		objects::imagePathA[bishop_w1::figure] = "models/bishop_w/texture.png";
 		objects::imagePathB[bishop_w1::figure] = "models/bishop_w/specular.png";
-		objects::vertices[bishop_w1::figure] = bishow_w_obj::vertices;
-		objects::texCoords[bishop_w1::figure] = bishow_w_obj::textures;
-		objects::normals[bishop_w1::figure] = bishow_w_obj::normals;
-		objects::vertexCount[bishop_w1::figure] = bishow_w_obj::vertexCount;
+		objects::vertices[bishop_w1::figure] = bishop_b_obj::vertices;
+		objects::texCoords[bishop_w1::figure] = bishop_b_obj::textures;
+		objects::normals[bishop_w1::figure] = bishop_b_obj::normals;
+		objects::vertexCount[bishop_w1::figure] = bishop_b_obj::vertexCount;
 		objects::textureUnitA[bishop_w1::figure] = GL_TEXTURE2;
 		objects::textureUnitB[bishop_w1::figure] = GL_TEXTURE3;
 		objects::textureUnitNumberA[bishop_w1::figure] = 2;
@@ -949,7 +896,7 @@ namespace bishop_w1{
 		objects::ambientOcculusion[bishop_w1::figure] = glm::vec3(1, 1, 1);
 		objects::roughness[bishop_w1::figure] = 0;
 		objects::metallic[bishop_w1::figure] = 0.5;
-
+		
 		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
 	}
 
@@ -968,6 +915,1434 @@ namespace bishop_w1{
 	void render() {
 		updater::prop::update(bishop_w1::figure);
 		render::render(bishop_w1::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace bishop_w2 {
+	const objects::Figure figure = objects::Figure::bishop_w2;
+
+	void init() {
+
+		objects::M[bishop_w2::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[bishop_w2::figure] = "models/bishop_w/bishop_w2.prop";
+		objects::imagePathA[bishop_w2::figure] = "models/bishop_w/texture.png";
+		objects::imagePathB[bishop_w2::figure] = "models/bishop_w/specular.png";
+		objects::vertices[bishop_w2::figure] = bishop_b_obj::vertices;
+		objects::texCoords[bishop_w2::figure] = bishop_b_obj::textures;
+		objects::normals[bishop_w2::figure] = bishop_b_obj::normals;
+		objects::vertexCount[bishop_w2::figure] = bishop_b_obj::vertexCount;
+		objects::textureUnitA[bishop_w2::figure] = GL_TEXTURE2;
+		objects::textureUnitB[bishop_w2::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[bishop_w2::figure] = 2;
+		objects::textureUnitNumberB[bishop_w2::figure] = 3;
+		objects::textureMap[bishop_w2::figure] = render::readTextureA(bishop_w2::figure);
+		objects::specularMap[bishop_w2::figure] = render::readTextureB(bishop_w2::figure);
+		objects::ambientOcculusion[bishop_w2::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[bishop_w2::figure] = 0;
+		objects::metallic[bishop_w2::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(bishop_w2::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(bishop_w2::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(bishop_w2::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(bishop_w2::figure);
+		render::render(bishop_w2::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace bishop_b1 {
+	const objects::Figure figure = objects::Figure::bishop_b1;
+
+	void init() {
+
+		objects::M[bishop_b1::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[bishop_b1::figure] = "models/bishop_b/bishop_b1.prop";
+		objects::imagePathA[bishop_b1::figure] = "models/bishop_b/texture.png";
+		objects::imagePathB[bishop_b1::figure] = "models/bishop_b/specular.png";
+		objects::vertices[bishop_b1::figure] = bishop_b_obj::vertices;
+		objects::texCoords[bishop_b1::figure] = bishop_b_obj::textures;
+		objects::normals[bishop_b1::figure] = bishop_b_obj::normals;
+		objects::vertexCount[bishop_b1::figure] = bishop_b_obj::vertexCount;
+		objects::textureUnitA[bishop_b1::figure] = GL_TEXTURE2;
+		objects::textureUnitB[bishop_b1::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[bishop_b1::figure] = 2;
+		objects::textureUnitNumberB[bishop_b1::figure] = 3;
+		objects::textureMap[bishop_b1::figure] = render::readTextureA(bishop_b1::figure);
+		objects::specularMap[bishop_b1::figure] = render::readTextureB(bishop_b1::figure);
+		objects::ambientOcculusion[bishop_b1::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[bishop_b1::figure] = 0;
+		objects::metallic[bishop_b1::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(bishop_b1::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(bishop_b1::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(bishop_b1::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(bishop_b1::figure);
+		render::render(bishop_b1::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace bishop_b2 {
+	const objects::Figure figure = objects::Figure::bishop_b2;
+
+	void init() {
+
+		objects::M[bishop_b2::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[bishop_b2::figure] = "models/bishop_b/bishop_b2.prop";
+		objects::imagePathA[bishop_b2::figure] = "models/bishop_b/texture.png";
+		objects::imagePathB[bishop_b2::figure] = "models/bishop_b/specular.png";
+		objects::vertices[bishop_b2::figure] = bishop_b_obj::vertices;
+		objects::texCoords[bishop_b2::figure] = bishop_b_obj::textures;
+		objects::normals[bishop_b2::figure] = bishop_b_obj::normals;
+		objects::vertexCount[bishop_b2::figure] = bishop_b_obj::vertexCount;
+		objects::textureUnitA[bishop_b2::figure] = GL_TEXTURE2;
+		objects::textureUnitB[bishop_b2::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[bishop_b2::figure] = 2;
+		objects::textureUnitNumberB[bishop_b2::figure] = 3;
+		objects::textureMap[bishop_b2::figure] = render::readTextureA(bishop_b2::figure);
+		objects::specularMap[bishop_b2::figure] = render::readTextureB(bishop_b2::figure);
+		objects::ambientOcculusion[bishop_b2::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[bishop_b2::figure] = 0;
+		objects::metallic[bishop_b2::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(bishop_b2::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(bishop_b2::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(bishop_b2::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(bishop_b2::figure);
+		render::render(bishop_b2::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace king_b {
+	const objects::Figure figure = objects::Figure::king_b;
+
+	void init() {
+
+		objects::M[king_b::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[king_b::figure] = "models/king_b/king_b.prop";
+		objects::imagePathA[king_b::figure] = "models/king_b/texture.png";
+		objects::imagePathB[king_b::figure] = "models/king_b/specular.png";
+		objects::vertices[king_b::figure] = king_b_obj::vertices;
+		objects::texCoords[king_b::figure] = king_b_obj::textures;
+		objects::normals[king_b::figure] = king_b_obj::normals;
+		objects::vertexCount[king_b::figure] = king_b_obj::vertexCount;
+		objects::textureUnitA[king_b::figure] = GL_TEXTURE2;
+		objects::textureUnitB[king_b::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[king_b::figure] = 2;
+		objects::textureUnitNumberB[king_b::figure] = 3;
+		objects::textureMap[king_b::figure] = render::readTextureA(king_b::figure);
+		objects::specularMap[king_b::figure] = render::readTextureB(king_b::figure);
+		objects::ambientOcculusion[king_b::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[king_b::figure] = 0;
+		objects::metallic[king_b::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(king_b::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(king_b::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(king_b::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(king_b::figure);
+		render::render(king_b::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace king_w {
+	const objects::Figure figure = objects::Figure::king_w;
+
+	void init() {
+
+		objects::M[king_w::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[king_w::figure] = "models/king_w/king_w.prop";
+		objects::imagePathA[king_w::figure] = "models/king_w/texture.png";
+		objects::imagePathB[king_w::figure] = "models/king_w/specular.png";
+		objects::vertices[king_w::figure] = king_b_obj::vertices;
+		objects::texCoords[king_w::figure] = king_b_obj::textures;
+		objects::normals[king_w::figure] = king_b_obj::normals;
+		objects::vertexCount[king_w::figure] = king_b_obj::vertexCount;
+		objects::textureUnitA[king_w::figure] = GL_TEXTURE2;
+		objects::textureUnitB[king_w::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[king_w::figure] = 2;
+		objects::textureUnitNumberB[king_w::figure] = 3;
+		objects::textureMap[king_w::figure] = render::readTextureA(king_w::figure);
+		objects::specularMap[king_w::figure] = render::readTextureB(king_w::figure);
+		objects::ambientOcculusion[king_w::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[king_w::figure] = 0;
+		objects::metallic[king_w::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(king_w::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(king_w::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(king_w::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(king_w::figure);
+		render::render(king_w::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace queen_b {
+	const objects::Figure figure = objects::Figure::queen_b;
+
+	void init() {
+
+		objects::M[queen_b::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[queen_b::figure] = "models/queen_b/queen_b.prop";
+		objects::imagePathA[queen_b::figure] = "models/queen_b/texture.png";
+		objects::imagePathB[queen_b::figure] = "models/queen_b/specular.png";
+		objects::vertices[queen_b::figure] = queen_b_obj::vertices;
+		objects::texCoords[queen_b::figure] = queen_b_obj::textures;
+		objects::normals[queen_b::figure] = queen_b_obj::normals;
+		objects::vertexCount[queen_b::figure] = queen_b_obj::vertexCount;
+		objects::textureUnitA[queen_b::figure] = GL_TEXTURE2;
+		objects::textureUnitB[queen_b::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[queen_b::figure] = 2;
+		objects::textureUnitNumberB[queen_b::figure] = 3;
+		objects::textureMap[queen_b::figure] = render::readTextureA(queen_b::figure);
+		objects::specularMap[queen_b::figure] = render::readTextureB(queen_b::figure);
+		objects::ambientOcculusion[queen_b::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[queen_b::figure] = 0;
+		objects::metallic[queen_b::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(queen_b::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(queen_b::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(queen_b::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(queen_b::figure);
+		render::render(queen_b::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace queen_w {
+	const objects::Figure figure = objects::Figure::queen_w;
+
+	void init() {
+
+		objects::M[queen_w::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[queen_w::figure] = "models/queen_w/queen_w.prop";
+		objects::imagePathA[queen_w::figure] = "models/queen_w/texture.png";
+		objects::imagePathB[queen_w::figure] = "models/queen_w/specular.png";
+		objects::vertices[queen_w::figure] = queen_b_obj::vertices;
+		objects::texCoords[queen_w::figure] = queen_b_obj::textures;
+		objects::normals[queen_w::figure] = queen_b_obj::normals;
+		objects::vertexCount[queen_w::figure] = queen_b_obj::vertexCount;
+		objects::textureUnitA[queen_w::figure] = GL_TEXTURE2;
+		objects::textureUnitB[queen_w::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[queen_w::figure] = 2;
+		objects::textureUnitNumberB[queen_w::figure] = 3;
+		objects::textureMap[queen_w::figure] = render::readTextureA(queen_w::figure);
+		objects::specularMap[queen_w::figure] = render::readTextureB(queen_w::figure);
+		objects::ambientOcculusion[queen_w::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[queen_w::figure] = 0;
+		objects::metallic[queen_w::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(queen_w::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(queen_w::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(queen_w::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(queen_w::figure);
+		render::render(queen_w::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace knight_b1 {
+	const objects::Figure figure = objects::Figure::knight_b1;
+
+	void init() {
+
+		objects::M[knight_b1::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[knight_b1::figure] = "models/knight_b/knight_b1.prop";
+		objects::imagePathA[knight_b1::figure] = "models/knight_b/texture.png";
+		objects::imagePathB[knight_b1::figure] = "models/knight_b/specular.png";
+		objects::vertices[knight_b1::figure] = knight_b_obj::vertices;
+		objects::texCoords[knight_b1::figure] = knight_b_obj::textures;
+		objects::normals[knight_b1::figure] = knight_b_obj::normals;
+		objects::vertexCount[knight_b1::figure] = knight_b_obj::vertexCount;
+		objects::textureUnitA[knight_b1::figure] = GL_TEXTURE2;
+		objects::textureUnitB[knight_b1::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[knight_b1::figure] = 2;
+		objects::textureUnitNumberB[knight_b1::figure] = 3;
+		objects::textureMap[knight_b1::figure] = render::readTextureA(knight_b1::figure);
+		objects::specularMap[knight_b1::figure] = render::readTextureB(knight_b1::figure);
+		objects::ambientOcculusion[knight_b1::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[knight_b1::figure] = 0;
+		objects::metallic[knight_b1::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(knight_b1::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(knight_b1::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(knight_b1::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(knight_b1::figure);
+		render::render(knight_b1::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace knight_b2 {
+	const objects::Figure figure = objects::Figure::knight_b2;
+
+	void init() {
+
+		objects::M[knight_b2::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[knight_b2::figure] = "models/knight_b/knight_b2.prop";
+		objects::imagePathA[knight_b2::figure] = "models/knight_b/texture.png";
+		objects::imagePathB[knight_b2::figure] = "models/knight_b/specular.png";
+		objects::vertices[knight_b2::figure] = knight_b_obj::vertices;
+		objects::texCoords[knight_b2::figure] = knight_b_obj::textures;
+		objects::normals[knight_b2::figure] = knight_b_obj::normals;
+		objects::vertexCount[knight_b2::figure] = knight_b_obj::vertexCount;
+		objects::textureUnitA[knight_b2::figure] = GL_TEXTURE2;
+		objects::textureUnitB[knight_b2::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[knight_b2::figure] = 2;
+		objects::textureUnitNumberB[knight_b2::figure] = 3;
+		objects::textureMap[knight_b2::figure] = render::readTextureA(knight_b2::figure);
+		objects::specularMap[knight_b2::figure] = render::readTextureB(knight_b2::figure);
+		objects::ambientOcculusion[knight_b2::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[knight_b2::figure] = 0;
+		objects::metallic[knight_b2::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(knight_b2::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(knight_b2::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(knight_b2::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(knight_b2::figure);
+		render::render(knight_b2::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace knight_w1 {
+	const objects::Figure figure = objects::Figure::knight_w1;
+
+	void init() {
+
+		objects::M[knight_w1::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[knight_w1::figure] = "models/knight_w/knight_w1.prop";
+		objects::imagePathA[knight_w1::figure] = "models/knight_w/texture.png";
+		objects::imagePathB[knight_w1::figure] = "models/knight_w/specular.png";
+		objects::vertices[knight_w1::figure] = knight_b_obj::vertices;
+		objects::texCoords[knight_w1::figure] = knight_b_obj::textures;
+		objects::normals[knight_w1::figure] = knight_b_obj::normals;
+		objects::vertexCount[knight_w1::figure] = knight_b_obj::vertexCount;
+		objects::textureUnitA[knight_w1::figure] = GL_TEXTURE2;
+		objects::textureUnitB[knight_w1::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[knight_w1::figure] = 2;
+		objects::textureUnitNumberB[knight_w1::figure] = 3;
+		objects::textureMap[knight_w1::figure] = render::readTextureA(knight_w1::figure);
+		objects::specularMap[knight_w1::figure] = render::readTextureB(knight_w1::figure);
+		objects::ambientOcculusion[knight_w1::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[knight_w1::figure] = 0;
+		objects::metallic[knight_w1::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(knight_w1::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(knight_w1::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(knight_w1::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(knight_w1::figure);
+		render::render(knight_w1::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace knight_w2 {
+	const objects::Figure figure = objects::Figure::knight_w2;
+
+	void init() {
+
+		objects::M[knight_w2::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[knight_w2::figure] = "models/knight_w/knight_w2.prop";
+		objects::imagePathA[knight_w2::figure] = "models/knight_w/texture.png";
+		objects::imagePathB[knight_w2::figure] = "models/knight_w/specular.png";
+		objects::vertices[knight_w2::figure] = knight_b_obj::vertices;
+		objects::texCoords[knight_w2::figure] = knight_b_obj::textures;
+		objects::normals[knight_w2::figure] = knight_b_obj::normals;
+		objects::vertexCount[knight_w2::figure] = knight_b_obj::vertexCount;
+		objects::textureUnitA[knight_w2::figure] = GL_TEXTURE2;
+		objects::textureUnitB[knight_w2::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[knight_w2::figure] = 2;
+		objects::textureUnitNumberB[knight_w2::figure] = 3;
+		objects::textureMap[knight_w2::figure] = render::readTextureA(knight_w2::figure);
+		objects::specularMap[knight_w2::figure] = render::readTextureB(knight_w2::figure);
+		objects::ambientOcculusion[knight_w2::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[knight_w2::figure] = 0;
+		objects::metallic[knight_w2::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(knight_w2::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(knight_w2::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(knight_w2::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(knight_w2::figure);
+		render::render(knight_w2::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace rook_b1 {
+	const objects::Figure figure = objects::Figure::rook_b1;
+
+	void init() {
+
+		objects::M[rook_b1::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[rook_b1::figure] = "models/rook_b/rook_b1.prop";
+		objects::imagePathA[rook_b1::figure] = "models/rook_b/texture.png";
+		objects::imagePathB[rook_b1::figure] = "models/rook_b/specular.png";
+		objects::vertices[rook_b1::figure] = rook_b_obj::vertices;
+		objects::texCoords[rook_b1::figure] = rook_b_obj::textures;
+		objects::normals[rook_b1::figure] = rook_b_obj::normals;
+		objects::vertexCount[rook_b1::figure] = rook_b_obj::vertexCount;
+		objects::textureUnitA[rook_b1::figure] = GL_TEXTURE2;
+		objects::textureUnitB[rook_b1::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[rook_b1::figure] = 2;
+		objects::textureUnitNumberB[rook_b1::figure] = 3;
+		objects::textureMap[rook_b1::figure] = render::readTextureA(rook_b1::figure);
+		objects::specularMap[rook_b1::figure] = render::readTextureB(rook_b1::figure);
+		objects::ambientOcculusion[rook_b1::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[rook_b1::figure] = 0;
+		objects::metallic[rook_b1::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(rook_b1::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(rook_b1::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(rook_b1::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(rook_b1::figure);
+		render::render(rook_b1::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace rook_b2 {
+	const objects::Figure figure = objects::Figure::rook_b2;
+
+	void init() {
+
+		objects::M[rook_b2::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[rook_b2::figure] = "models/rook_b/rook_b2.prop";
+		objects::imagePathA[rook_b2::figure] = "models/rook_b/texture.png";
+		objects::imagePathB[rook_b2::figure] = "models/rook_b/specular.png";
+		objects::vertices[rook_b2::figure] = rook_b_obj::vertices;
+		objects::texCoords[rook_b2::figure] = rook_b_obj::textures;
+		objects::normals[rook_b2::figure] = rook_b_obj::normals;
+		objects::vertexCount[rook_b2::figure] = rook_b_obj::vertexCount;
+		objects::textureUnitA[rook_b2::figure] = GL_TEXTURE2;
+		objects::textureUnitB[rook_b2::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[rook_b2::figure] = 2;
+		objects::textureUnitNumberB[rook_b2::figure] = 3;
+		objects::textureMap[rook_b2::figure] = render::readTextureA(rook_b2::figure);
+		objects::specularMap[rook_b2::figure] = render::readTextureB(rook_b2::figure);
+		objects::ambientOcculusion[rook_b2::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[rook_b2::figure] = 0;
+		objects::metallic[rook_b2::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(rook_b2::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(rook_b2::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(rook_b2::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(rook_b2::figure);
+		render::render(rook_b2::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace rook_w1 {
+	const objects::Figure figure = objects::Figure::rook_w1;
+
+	void init() {
+
+		objects::M[rook_w1::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[rook_w1::figure] = "models/rook_w/rook_w1.prop";
+		objects::imagePathA[rook_w1::figure] = "models/rook_w/texture.png";
+		objects::imagePathB[rook_w1::figure] = "models/rook_w/specular.png";
+		objects::vertices[rook_w1::figure] = rook_b_obj::vertices;
+		objects::texCoords[rook_w1::figure] = rook_b_obj::textures;
+		objects::normals[rook_w1::figure] = rook_b_obj::normals;
+		objects::vertexCount[rook_w1::figure] = rook_b_obj::vertexCount;
+		objects::textureUnitA[rook_w1::figure] = GL_TEXTURE2;
+		objects::textureUnitB[rook_w1::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[rook_w1::figure] = 2;
+		objects::textureUnitNumberB[rook_w1::figure] = 3;
+		objects::textureMap[rook_w1::figure] = render::readTextureA(rook_w1::figure);
+		objects::specularMap[rook_w1::figure] = render::readTextureB(rook_w1::figure);
+		objects::ambientOcculusion[rook_w1::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[rook_w1::figure] = 0;
+		objects::metallic[rook_w1::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(rook_w1::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(rook_w1::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(rook_w1::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(rook_w1::figure);
+		render::render(rook_w1::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace rook_w2 {
+	const objects::Figure figure = objects::Figure::rook_w2;
+
+	void init() {
+
+		objects::M[rook_w2::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[rook_w2::figure] = "models/rook_w/rook_w2.prop";
+		objects::imagePathA[rook_w2::figure] = "models/rook_w/texture.png";
+		objects::imagePathB[rook_w2::figure] = "models/rook_w/specular.png";
+		objects::vertices[rook_w2::figure] = rook_b_obj::vertices;
+		objects::texCoords[rook_w2::figure] = rook_b_obj::textures;
+		objects::normals[rook_w2::figure] = rook_b_obj::normals;
+		objects::vertexCount[rook_w2::figure] = rook_b_obj::vertexCount;
+		objects::textureUnitA[rook_w2::figure] = GL_TEXTURE2;
+		objects::textureUnitB[rook_w2::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[rook_w2::figure] = 2;
+		objects::textureUnitNumberB[rook_w2::figure] = 3;
+		objects::textureMap[rook_w2::figure] = render::readTextureA(rook_w2::figure);
+		objects::specularMap[rook_w2::figure] = render::readTextureB(rook_w2::figure);
+		objects::ambientOcculusion[rook_w2::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[rook_w2::figure] = 0;
+		objects::metallic[rook_w2::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(rook_w2::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(rook_w2::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(rook_w2::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(rook_w2::figure);
+		render::render(rook_w2::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_b1 {
+	const objects::Figure figure = objects::Figure::pawn_b1;
+
+	void init() {
+
+		objects::M[pawn_b1::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_b1::figure] = "models/pawn_b/pawn_b1.prop";
+		objects::imagePathA[pawn_b1::figure] = "models/pawn_b/texture.png";
+		objects::imagePathB[pawn_b1::figure] = "models/pawn_b/specular.png";
+		objects::vertices[pawn_b1::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_b1::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_b1::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_b1::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_b1::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_b1::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_b1::figure] = 2;
+		objects::textureUnitNumberB[pawn_b1::figure] = 3;
+		objects::textureMap[pawn_b1::figure] = render::readTextureA(pawn_b1::figure);
+		objects::specularMap[pawn_b1::figure] = render::readTextureB(pawn_b1::figure);
+		objects::ambientOcculusion[pawn_b1::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_b1::figure] = 0;
+		objects::metallic[pawn_b1::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_b1::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_b1::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_b1::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_b1::figure);
+		render::render(pawn_b1::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_b2 {
+	const objects::Figure figure = objects::Figure::pawn_b2;
+
+	void init() {
+
+		objects::M[pawn_b2::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_b2::figure] = "models/pawn_b/pawn_b2.prop";
+		objects::imagePathA[pawn_b2::figure] = "models/pawn_b/texture.png";
+		objects::imagePathB[pawn_b2::figure] = "models/pawn_b/specular.png";
+		objects::vertices[pawn_b2::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_b2::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_b2::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_b2::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_b2::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_b2::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_b2::figure] = 2;
+		objects::textureUnitNumberB[pawn_b2::figure] = 3;
+		objects::textureMap[pawn_b2::figure] = render::readTextureA(pawn_b2::figure);
+		objects::specularMap[pawn_b2::figure] = render::readTextureB(pawn_b2::figure);
+		objects::ambientOcculusion[pawn_b2::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_b2::figure] = 0;
+		objects::metallic[pawn_b2::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_b2::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_b2::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_b2::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_b2::figure);
+		render::render(pawn_b2::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_b3 {
+	const objects::Figure figure = objects::Figure::pawn_b3;
+
+	void init() {
+
+		objects::M[pawn_b3::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_b3::figure] = "models/pawn_b/pawn_b3.prop";
+		objects::imagePathA[pawn_b3::figure] = "models/pawn_b/texture.png";
+		objects::imagePathB[pawn_b3::figure] = "models/pawn_b/specular.png";
+		objects::vertices[pawn_b3::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_b3::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_b3::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_b3::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_b3::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_b3::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_b3::figure] = 2;
+		objects::textureUnitNumberB[pawn_b3::figure] = 3;
+		objects::textureMap[pawn_b3::figure] = render::readTextureA(pawn_b3::figure);
+		objects::specularMap[pawn_b3::figure] = render::readTextureB(pawn_b3::figure);
+		objects::ambientOcculusion[pawn_b3::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_b3::figure] = 0;
+		objects::metallic[pawn_b3::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_b3::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_b3::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_b3::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_b3::figure);
+		render::render(pawn_b3::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_b4 {
+	const objects::Figure figure = objects::Figure::pawn_b4;
+
+	void init() {
+
+		objects::M[pawn_b4::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_b4::figure] = "models/pawn_b/pawn_b4.prop";
+		objects::imagePathA[pawn_b4::figure] = "models/pawn_b/texture.png";
+		objects::imagePathB[pawn_b4::figure] = "models/pawn_b/specular.png";
+		objects::vertices[pawn_b4::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_b4::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_b4::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_b4::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_b4::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_b4::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_b4::figure] = 2;
+		objects::textureUnitNumberB[pawn_b4::figure] = 3;
+		objects::textureMap[pawn_b4::figure] = render::readTextureA(pawn_b4::figure);
+		objects::specularMap[pawn_b4::figure] = render::readTextureB(pawn_b4::figure);
+		objects::ambientOcculusion[pawn_b4::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_b4::figure] = 0;
+		objects::metallic[pawn_b4::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_b4::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_b4::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_b4::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_b4::figure);
+		render::render(pawn_b4::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_b5 {
+	const objects::Figure figure = objects::Figure::pawn_b5;
+
+	void init() {
+
+		objects::M[pawn_b5::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_b5::figure] = "models/pawn_b/pawn_b5.prop";
+		objects::imagePathA[pawn_b5::figure] = "models/pawn_b/texture.png";
+		objects::imagePathB[pawn_b5::figure] = "models/pawn_b/specular.png";
+		objects::vertices[pawn_b5::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_b5::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_b5::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_b5::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_b5::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_b5::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_b5::figure] = 2;
+		objects::textureUnitNumberB[pawn_b5::figure] = 3;
+		objects::textureMap[pawn_b5::figure] = render::readTextureA(pawn_b5::figure);
+		objects::specularMap[pawn_b5::figure] = render::readTextureB(pawn_b5::figure);
+		objects::ambientOcculusion[pawn_b5::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_b5::figure] = 0;
+		objects::metallic[pawn_b5::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_b5::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_b5::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_b5::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_b5::figure);
+		render::render(pawn_b5::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_b6 {
+	const objects::Figure figure = objects::Figure::pawn_b6;
+
+	void init() {
+
+		objects::M[pawn_b6::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_b6::figure] = "models/pawn_b/pawn_b6.prop";
+		objects::imagePathA[pawn_b6::figure] = "models/pawn_b/texture.png";
+		objects::imagePathB[pawn_b6::figure] = "models/pawn_b/specular.png";
+		objects::vertices[pawn_b6::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_b6::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_b6::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_b6::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_b6::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_b6::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_b6::figure] = 2;
+		objects::textureUnitNumberB[pawn_b6::figure] = 3;
+		objects::textureMap[pawn_b6::figure] = render::readTextureA(pawn_b6::figure);
+		objects::specularMap[pawn_b6::figure] = render::readTextureB(pawn_b6::figure);
+		objects::ambientOcculusion[pawn_b6::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_b6::figure] = 0;
+		objects::metallic[pawn_b6::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_b6::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_b6::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_b6::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_b6::figure);
+		render::render(pawn_b6::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_b7 {
+	const objects::Figure figure = objects::Figure::pawn_b7;
+
+	void init() {
+
+		objects::M[pawn_b7::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_b7::figure] = "models/pawn_b/pawn_b7.prop";
+		objects::imagePathA[pawn_b7::figure] = "models/pawn_b/texture.png";
+		objects::imagePathB[pawn_b7::figure] = "models/pawn_b/specular.png";
+		objects::vertices[pawn_b7::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_b7::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_b7::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_b7::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_b7::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_b7::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_b7::figure] = 2;
+		objects::textureUnitNumberB[pawn_b7::figure] = 3;
+		objects::textureMap[pawn_b7::figure] = render::readTextureA(pawn_b7::figure);
+		objects::specularMap[pawn_b7::figure] = render::readTextureB(pawn_b7::figure);
+		objects::ambientOcculusion[pawn_b7::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_b7::figure] = 0;
+		objects::metallic[pawn_b7::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_b7::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_b7::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_b7::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_b7::figure);
+		render::render(pawn_b7::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_b8 {
+	const objects::Figure figure = objects::Figure::pawn_b8;
+
+	void init() {
+
+		objects::M[pawn_b8::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_b8::figure] = "models/pawn_b/pawn_b8.prop";
+		objects::imagePathA[pawn_b8::figure] = "models/pawn_b/texture.png";
+		objects::imagePathB[pawn_b8::figure] = "models/pawn_b/specular.png";
+		objects::vertices[pawn_b8::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_b8::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_b8::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_b8::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_b8::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_b8::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_b8::figure] = 2;
+		objects::textureUnitNumberB[pawn_b8::figure] = 3;
+		objects::textureMap[pawn_b8::figure] = render::readTextureA(pawn_b8::figure);
+		objects::specularMap[pawn_b8::figure] = render::readTextureB(pawn_b8::figure);
+		objects::ambientOcculusion[pawn_b8::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_b8::figure] = 0;
+		objects::metallic[pawn_b8::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_b8::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_b8::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_b8::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_b8::figure);
+		render::render(pawn_b8::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_w1 {
+	const objects::Figure figure = objects::Figure::pawn_w1;
+
+	void init() {
+
+		objects::M[pawn_w1::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_w1::figure] = "models/pawn_w/pawn_w1.prop";
+		objects::imagePathA[pawn_w1::figure] = "models/pawn_w/texture.png";
+		objects::imagePathB[pawn_w1::figure] = "models/pawn_w/specular.png";
+		objects::vertices[pawn_w1::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_w1::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_w1::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_w1::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_w1::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_w1::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_w1::figure] = 2;
+		objects::textureUnitNumberB[pawn_w1::figure] = 3;
+		objects::textureMap[pawn_w1::figure] = render::readTextureA(pawn_w1::figure);
+		objects::specularMap[pawn_w1::figure] = render::readTextureB(pawn_w1::figure);
+		objects::ambientOcculusion[pawn_w1::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_w1::figure] = 0;
+		objects::metallic[pawn_w1::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_w1::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_w1::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_w1::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_w1::figure);
+		render::render(pawn_w1::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_w2 {
+	const objects::Figure figure = objects::Figure::pawn_w2;
+
+	void init() {
+
+		objects::M[pawn_w2::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_w2::figure] = "models/pawn_w/pawn_w2.prop";
+		objects::imagePathA[pawn_w2::figure] = "models/pawn_w/texture.png";
+		objects::imagePathB[pawn_w2::figure] = "models/pawn_w/specular.png";
+		objects::vertices[pawn_w2::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_w2::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_w2::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_w2::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_w2::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_w2::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_w2::figure] = 2;
+		objects::textureUnitNumberB[pawn_w2::figure] = 3;
+		objects::textureMap[pawn_w2::figure] = render::readTextureA(pawn_w2::figure);
+		objects::specularMap[pawn_w2::figure] = render::readTextureB(pawn_w2::figure);
+		objects::ambientOcculusion[pawn_w2::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_w2::figure] = 0;
+		objects::metallic[pawn_w2::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_w2::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_w2::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_w2::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_w2::figure);
+		render::render(pawn_w2::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_w3 {
+	const objects::Figure figure = objects::Figure::pawn_w3;
+
+	void init() {
+
+		objects::M[pawn_w3::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_w3::figure] = "models/pawn_w/pawn_w3.prop";
+		objects::imagePathA[pawn_w3::figure] = "models/pawn_w/texture.png";
+		objects::imagePathB[pawn_w3::figure] = "models/pawn_w/specular.png";
+		objects::vertices[pawn_w3::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_w3::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_w3::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_w3::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_w3::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_w3::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_w3::figure] = 2;
+		objects::textureUnitNumberB[pawn_w3::figure] = 3;
+		objects::textureMap[pawn_w3::figure] = render::readTextureA(pawn_w3::figure);
+		objects::specularMap[pawn_w3::figure] = render::readTextureB(pawn_w3::figure);
+		objects::ambientOcculusion[pawn_w3::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_w3::figure] = 0;
+		objects::metallic[pawn_w3::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_w3::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_w3::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_w3::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_w3::figure);
+		render::render(pawn_w3::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_w4 {
+	const objects::Figure figure = objects::Figure::pawn_w4;
+
+	void init() {
+
+		objects::M[pawn_w4::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_w4::figure] = "models/pawn_w/pawn_w4.prop";
+		objects::imagePathA[pawn_w4::figure] = "models/pawn_w/texture.png";
+		objects::imagePathB[pawn_w4::figure] = "models/pawn_w/specular.png";
+		objects::vertices[pawn_w4::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_w4::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_w4::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_w4::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_w4::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_w4::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_w4::figure] = 2;
+		objects::textureUnitNumberB[pawn_w4::figure] = 3;
+		objects::textureMap[pawn_w4::figure] = render::readTextureA(pawn_w4::figure);
+		objects::specularMap[pawn_w4::figure] = render::readTextureB(pawn_w4::figure);
+		objects::ambientOcculusion[pawn_w4::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_w4::figure] = 0;
+		objects::metallic[pawn_w4::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_w4::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_w4::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_w4::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_w4::figure);
+		render::render(pawn_w4::figure);
+		// std::cout << figure;
+	}
+
+}
+
+
+namespace pawn_w5 {
+	const objects::Figure figure = objects::Figure::pawn_w5;
+
+	void init() {
+
+		objects::M[pawn_w5::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_w5::figure] = "models/pawn_w/pawn_w5.prop";
+		objects::imagePathA[pawn_w5::figure] = "models/pawn_w/texture.png";
+		objects::imagePathB[pawn_w5::figure] = "models/pawn_w/specular.png";
+		objects::vertices[pawn_w5::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_w5::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_w5::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_w5::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_w5::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_w5::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_w5::figure] = 2;
+		objects::textureUnitNumberB[pawn_w5::figure] = 3;
+		objects::textureMap[pawn_w5::figure] = render::readTextureA(pawn_w5::figure);
+		objects::specularMap[pawn_w5::figure] = render::readTextureB(pawn_w5::figure);
+		objects::ambientOcculusion[pawn_w5::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_w5::figure] = 0;
+		objects::metallic[pawn_w5::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_w5::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_w5::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_w5::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_w5::figure);
+		render::render(pawn_w5::figure);
+		// std::cout << figure;
+	}
+
+}
+
+
+namespace pawn_w6 {
+	const objects::Figure figure = objects::Figure::pawn_w6;
+
+	void init() {
+
+		objects::M[pawn_w6::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_w6::figure] = "models/pawn_w/pawn_w6.prop";
+		objects::imagePathA[pawn_w6::figure] = "models/pawn_w/texture.png";
+		objects::imagePathB[pawn_w6::figure] = "models/pawn_w/specular.png";
+		objects::vertices[pawn_w6::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_w6::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_w6::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_w6::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_w6::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_w6::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_w6::figure] = 2;
+		objects::textureUnitNumberB[pawn_w6::figure] = 3;
+		objects::textureMap[pawn_w6::figure] = render::readTextureA(pawn_w6::figure);
+		objects::specularMap[pawn_w6::figure] = render::readTextureB(pawn_w6::figure);
+		objects::ambientOcculusion[pawn_w6::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_w6::figure] = 0;
+		objects::metallic[pawn_w6::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_w6::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_w6::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_w6::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_w6::figure);
+		render::render(pawn_w6::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_w7 {
+	const objects::Figure figure = objects::Figure::pawn_w7;
+
+	void init() {
+
+		objects::M[pawn_w7::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_w7::figure] = "models/pawn_w/pawn_w7.prop";
+		objects::imagePathA[pawn_w7::figure] = "models/pawn_w/texture.png";
+		objects::imagePathB[pawn_w7::figure] = "models/pawn_w/specular.png";
+		objects::vertices[pawn_w7::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_w7::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_w7::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_w7::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_w7::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_w7::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_w7::figure] = 2;
+		objects::textureUnitNumberB[pawn_w7::figure] = 3;
+		objects::textureMap[pawn_w7::figure] = render::readTextureA(pawn_w7::figure);
+		objects::specularMap[pawn_w7::figure] = render::readTextureB(pawn_w7::figure);
+		objects::ambientOcculusion[pawn_w7::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_w7::figure] = 0;
+		objects::metallic[pawn_w7::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_w7::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_w7::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_w7::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_w7::figure);
+		render::render(pawn_w7::figure);
+		// std::cout << figure;
+	}
+
+}
+
+namespace pawn_w8 {
+	const objects::Figure figure = objects::Figure::pawn_w8;
+
+	void init() {
+
+		objects::M[pawn_w8::figure] = glm::mat4(1.0f);
+		objects::controllFilePath[pawn_w8::figure] = "models/pawn_w/pawn_w8.prop";
+		objects::imagePathA[pawn_w8::figure] = "models/pawn_w/texture.png";
+		objects::imagePathB[pawn_w8::figure] = "models/pawn_w/specular.png";
+		objects::vertices[pawn_w8::figure] = pawn_b_obj::vertices;
+		objects::texCoords[pawn_w8::figure] = pawn_b_obj::textures;
+		objects::normals[pawn_w8::figure] = pawn_b_obj::normals;
+		objects::vertexCount[pawn_w8::figure] = pawn_b_obj::vertexCount;
+		objects::textureUnitA[pawn_w8::figure] = GL_TEXTURE2;
+		objects::textureUnitB[pawn_w8::figure] = GL_TEXTURE3;
+		objects::textureUnitNumberA[pawn_w8::figure] = 2;
+		objects::textureUnitNumberB[pawn_w8::figure] = 3;
+		objects::textureMap[pawn_w8::figure] = render::readTextureA(pawn_w8::figure);
+		objects::specularMap[pawn_w8::figure] = render::readTextureB(pawn_w8::figure);
+		objects::ambientOcculusion[pawn_w8::figure] = glm::vec3(1, 1, 1);
+		objects::roughness[pawn_w8::figure] = 0;
+		objects::metallic[pawn_w8::figure] = 0.5;
+
+		// for (int i = 0; i < 36; i++) std::cout << objects::vertices[figure][i] << " ";
+	}
+
+	void move(float distance, transformations::Axis axis) {
+		transformations::move(pawn_w8::figure, axis, distance);
+	}
+
+	void rotate(float angle, transformations::Axis axis) {
+		transformations::rotate(pawn_w8::figure, axis, angle);
+	}
+
+	void scale(float scale, transformations::Axis axis) {
+		transformations::scale(pawn_w8::figure, axis, scale);
+	}
+
+	void render() {
+		updater::prop::update(pawn_w8::figure);
+		render::render(pawn_w8::figure);
 		// std::cout << figure;
 	}
 
@@ -1062,8 +2437,6 @@ void windowResizeCallback(GLFWwindow* window,int width,int height) {
     glViewport(0,0,width,height);
 }
 
-
-
 //Procedura inicjująca
 void initOpenGLProgram(GLFWwindow* window) {
 	//************Tutaj umieszczaj kod, który należy wykonać raz, na początku programu************
@@ -1073,11 +2446,20 @@ void initOpenGLProgram(GLFWwindow* window) {
 	glfwSetKeyCallback(window,keyCallback);
 	observer::init();
 	board::init();
-	bishop_w1::init();
+
+	bishop_w1::init(); 	bishop_w2::init();	bishop_b1::init();	bishop_b2::init();
+	king_b::init();		king_w::init();
+	queen_w::init();	queen_b::init();
+	rook_w1::init();	rook_w2::init();	rook_b1::init();	rook_b2::init();
+	knight_w1::init();	knight_w2::init();	knight_b1::init();	knight_b2::init();
+	pawn_w1::init();	pawn_w2::init();	pawn_w3::init();	pawn_w4::init();
+	pawn_w5::init();	pawn_w6::init();	pawn_w7::init();	pawn_w8::init();
+	pawn_b1::init();	pawn_b2::init();	pawn_b3::init();	pawn_b4::init();
+	pawn_b5::init();	pawn_b6::init();	pawn_b7::init();	pawn_b8::init();
+
 	render::init();
 	
 }
-
 
 //Zwolnienie zasobów zajętych przez program
 void freeOpenGLProgram(GLFWwindow* window) {
@@ -1093,14 +2475,25 @@ void drawScene(GLFWwindow* window) {
 	observer::rotate();
 	observer::move();
 	board::render();
-	bishop_w1::render();
+
+	bishop_w1::render(); 	bishop_w2::render();	bishop_b1::render();	bishop_b2::render();
+	king_b::render();		king_w::render();
+	queen_w::render();		queen_b::render();
+	rook_w1::render();		rook_w2::render();		rook_b1::render();		rook_b2::render();
+	knight_w1::render();	knight_w2::render();	knight_b1::render();	knight_b2::render();
+	pawn_w1::render();		pawn_w2::render();		pawn_w3::render();		pawn_w4::render();
+	pawn_w5::render();		pawn_w6::render();		pawn_w7::render();		pawn_w8::render();
+	pawn_b1::render();		pawn_b2::render();		pawn_b3::render();		pawn_b4::render();
+	pawn_b5::render();		pawn_b6::render();		pawn_b7::render();		pawn_b8::render();
 	debug::printAll();
     glfwSwapBuffers(window); //Przerzuć tylny bufor na przedni
 }
 
 void test() {
-	converter::convert("models/bishop_b/object.obj", "bishop_b_obj");
-	// converter::convert("models/rook_w/object.obj", "rook_w_obj");
+	converter::convert("models/knight_b/object.obj", "knight_b_obj");
+	converter::convert("models/pawn_b/object.obj", "pawn_b_obj");
+	converter::convert("models/queen_b/object.obj", "queen_b_obj");
+	converter::convert("models/rook_b/object.obj", "rook_b_obj");
 }
 
 void mainline() {
@@ -1149,7 +2542,7 @@ void mainline() {
 
 int main(void)
 {
-	// mainline();
-	test();
+	mainline();
+	// test();
 }
 
