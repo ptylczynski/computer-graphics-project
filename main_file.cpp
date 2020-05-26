@@ -42,10 +42,15 @@ Place, Fifth Floor, Boston, MA  02110 - 1301  USA
 #include "models/knight_b/object.obj.h"
 
 
-
+// used during converting models
 const bool isDebugActive = false;
+// used to mark if we want to auto read setting from file
 const bool autoUpdateSettings = true;
+// same but for prop settings, can be changed runtime
+// if set to true animations are not read form file
 bool autoUpdateProp = false;
+// shows informations about camera position and animations 
+bool const showStatus = false;
 
 namespace mathematics {
 	void min(float* value, float min) {
@@ -80,11 +85,22 @@ namespace mathematics {
 }
 
 namespace global {
+	// position of light 1
 	glm::vec3 light1Pos;
+
+	// position of light 2
 	glm::vec3 light2Pos;
+
+	// control file for run-time adjustements 
 	const char* settingsPath = "settings.prop";
+
+	// file to store prop moves
 	const char* stepsPath = "g.game";
+
+	// size of one step made by prop
 	float moveStep;
+
+	// unused
 	float moveOffset;
 
 	void init() {
@@ -183,21 +199,27 @@ namespace observer {
 		// move left / right
 		observer::position += perpendicular * (float)observer::moveLeftRightDirection * observer::moveSpeed;
 
+		// fixing distance of lookAtPosition so rounding errors dont affect
+		// sensitivity over time
 		observer::lookAtPosition = observer::position +  forward * observer::distance;
 	}
 
 	// positive angles result clockwise rotations
 	void rotate() {
+
+		// applying rotation over X axis
+		// yaw
 		float yaw = observer::rotationDirectionX * observer::rotationSpeed;
 		observer::totalYaw += yaw;
 		mathematics::clamp(&observer::totalYaw, -1.5f, 1.5f);
-		// yaw
 		float dy = observer::distance * sin(observer::totalYaw);
+		// reciprocal is used as new diameter
 		float diameter = observer::distance * cos(observer::totalYaw);
 
+		// applying rotaion over Y axis
+		// rotation
 		float rotation = observer::rotationDirectionY * observer::rotationSpeed;
 		observer::totalRotation = (observer::totalRotation + rotation);
-		// rotation
 		float dx = diameter * sin(observer::totalRotation);
 		float dz = diameter * cos(observer::totalRotation);
 
@@ -214,15 +236,14 @@ namespace render {
 	float aspectRatio = 1;
 
 	GLuint readTexture(const char* filename, int textureUnit) {
+		// texture unit is no longer used, but removing it from signature
+		// is huge hassle due to need to remove it from function uses in over 30 lines
 		GLuint tex;
-		//glActiveTexture(textureUnit); //Wczytanie do pamięci komputera
-		std::vector<unsigned char> image;   //Alokuj wektor do wczytania obrazka
-		unsigned width, height;   //Zmienne do których wczytamy wymiary obrazka
-								 //Wczytaj obrazek
-		unsigned error = lodepng::decode(image, width, height, filename);//Import do pamięci karty graficznej
-		glGenTextures(1, &tex); //Zainicjuj jeden uchwyt
-		glBindTexture(GL_TEXTURE_2D, tex); //Uaktywnij uchwyt
-										   //Wczytaj obrazek do pamięci KG skojarzonej z uchwytem
+		std::vector<unsigned char> image;  
+		unsigned width, height;   
+		unsigned error = lodepng::decode(image, width, height, filename);
+		glGenTextures(1, &tex);
+		glBindTexture(GL_TEXTURE_2D, tex); 
 		glTexImage2D(GL_TEXTURE_2D, 0, 4, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, (unsigned char*)image.data());
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -230,19 +251,23 @@ namespace render {
 	}
 
 	GLuint readTextureA(objects::Figure figure) {
+		// used to read albedo
 		return render::readTexture(objects::imagePathA[figure], objects::textureUnitA[figure]);
 	}
 
 	GLuint readTextureB(objects::Figure figure) {
+		// used to read specular map
 		return render::readTexture(objects::imagePathB[figure], objects::textureUnitB[figure]);
 	}
 
 	void init() {
+		// view distance is sat as 150 unit away
 		render::P = glm::perspective(50.0f * PI / 180.0f, render::aspectRatio, 0.01f, 150.0f);
 		render::shaderProgram = new ShaderProgram("shaders/v_simplest.glsl", NULL, "shaders/f_simplest.glsl");
 	}
 
 	void start() {
+		// called in each frame once to set V matrix and clear buffers
 		render::V = glm::lookAt(
 			observer::position,
 			observer::lookAtPosition,
@@ -251,7 +276,8 @@ namespace render {
 	}
 
 	void render(objects::Figure figure) {
-
+		// called to render fiure
+		// once per frame per figure
 		int textureUnitA = objects::textureUnitA[figure];
 		int textureUnitB = objects::textureUnitB[figure];
 		int textureUnitNumberA = objects::textureUnitNumberA[figure];
@@ -273,8 +299,7 @@ namespace render {
 		};
 
 		glm::mat4 M = objects::M[figure];
-		render::shaderProgram->use();//Aktywacja programu cieniującego
-		//Przeslij parametry programu cieniującego do karty graficznej
+		render::shaderProgram->use();
 		glUniformMatrix4fv(render::shaderProgram->u("P"), 1, false, glm::value_ptr(render::P));
 		glUniformMatrix4fv(render::shaderProgram->u("V"), 1, false, glm::value_ptr(render::V));
 		glUniformMatrix4fv(render::shaderProgram->u("M"), 1, false, glm::value_ptr(M));
@@ -286,11 +311,11 @@ namespace render {
 		glUniform1f(render::shaderProgram->u("roughness"), roughness);
 		glUniform3f(render::shaderProgram->u("ao"), ambientOcculusion.x, ambientOcculusion.y, ambientOcculusion.z);
 
-		glEnableVertexAttribArray(render::shaderProgram->a("vertexPosition"));  //Włącz przesyłanie danych do atrybutu vertex
-		glVertexAttribPointer(render::shaderProgram->a("vertexPosition"), 4, GL_FLOAT, false, 0, vertices); //Wskaż tablicę z danymi dla atrybutu vertex
+		glEnableVertexAttribArray(render::shaderProgram->a("vertexPosition")); 
+		glVertexAttribPointer(render::shaderProgram->a("vertexPosition"), 4, GL_FLOAT, false, 0, vertices);
 
-		glEnableVertexAttribArray(render::shaderProgram->a("vertexNormal"));  //Włącz przesyłanie danych do atrybutu normal
-		glVertexAttribPointer(render::shaderProgram->a("vertexNormal"), 4, GL_FLOAT, false, 0, normals); //Wskaż tablicę z danymi dla atrybutu normal
+		glEnableVertexAttribArray(render::shaderProgram->a("vertexNormal")); 
+		glVertexAttribPointer(render::shaderProgram->a("vertexNormal"), 4, GL_FLOAT, false, 0, normals);
 
 		glEnableVertexAttribArray(render::shaderProgram->a("textureCoord"));
 		glVertexAttribPointer(render::shaderProgram->a("textureCoord"), 2, GL_FLOAT, false, 0, texCoords);
@@ -300,10 +325,10 @@ namespace render {
 		glActiveTexture(textureUnitB);
 		glBindTexture(GL_TEXTURE_2D, specularMap);
 
-		glDrawArrays(GL_TRIANGLES, 0, vertexCount); //Narysuj obiekt
+		glDrawArrays(GL_TRIANGLES, 0, vertexCount); 
 
-		glDisableVertexAttribArray(render::shaderProgram->a("vertexPosition"));  //Wyłącz przesyłanie danych do atrybutu vertex
-		glDisableVertexAttribArray(render::shaderProgram->a("vertexNormal"));  //Wyłącz przesyłanie danych do atrybutu normal
+		glDisableVertexAttribArray(render::shaderProgram->a("vertexPosition"));
+		glDisableVertexAttribArray(render::shaderProgram->a("vertexNormal")); 
 		glDisableVertexAttribArray(render::shaderProgram->a("textureCoord"));
 	}
 
@@ -2529,12 +2554,19 @@ namespace animator {
 		std::cout << "moveOffset: " << global::moveOffset << " moveStep: " << global::moveStep << std::endl;
 		*/
 		glm::vec4 currPos = objects::M[figure] * glm::vec4(1.0f);
+
+		// figures have swapped y and z axis
+		// white figures are rotated along y axis by 180 deg
 		if (objects::controllFilePath[figure].find("_b") != std::string::npos) animator::endPos = glm::translate(objects::M[figure], glm::vec3(x, z, 0)) * glm::vec4(1.0f);
 		else animator::endPos = glm::translate(objects::M[figure], glm::vec3(-x, -z, 0)) * glm::vec4(1.0f);
+
+		// used to determine progress of animation as fraction of passed
+		// distance to total distance
 		animator::totalDist = glm::distance(endPos, currPos);
 	}
 
 	void setRemoveTransformation() {
+		// just hide underground
 		objects::Figure figure = animator::steps[animator::stepsIterator].figure;
 		glm::vec4 currPos = objects::M[figure] * glm::vec4(1.0f);
 		animator::endPos = glm::translate(objects::M[figure], glm::vec3(0, 0, -15)) * glm::vec4(1.0f);
@@ -2542,11 +2574,15 @@ namespace animator {
 	}
 
 	float speedCoeff(float dist) {
+		// speed coefficient is a quadratic function so 
+		// props move slower on start and end of animation and faster in between
+		// speed can be adjusted by multiplication of square unction
 		float progress = dist / animator::totalDist;
 		return animator::aimationSpeed * (-pow((progress - 0.5), 2)) * 3 + 1;
 	}
 
 	void makeMoveAnimation() {
+		// aniate to given possition
 		objects::Figure figure = animator::steps[animator::stepsIterator].figure;
 		int row = animator::steps[animator::stepsIterator].newPosition.first;
 		int col = animator::steps[animator::stepsIterator].newPosition.second;
@@ -2556,34 +2592,39 @@ namespace animator {
 
 		float dist = glm::distance(currPos, animator::endPos);
 
-		std::cout << "Animating" << std::endl;
-		std::cout << "row: " << row << "col: " << col << std::endl;
-		std::cout << "currPos: x: " << currPos.x << " y: " << currPos.y << " z: " << currPos.z << std::endl;
-		std::cout << "endPos x: " << animator::endPos.x << " y: " << animator::endPos.y << " z: " << animator::endPos.z << std::endl;
-		std::cout << "diff x: " << diff.x << " y: " << diff.y << " z: " << diff.z << std::endl;
+		if (showStatus) {
+			std::cout << "Animating" << std::endl;
+			std::cout << "row: " << row << "col: " << col << std::endl;
+			std::cout << "currPos: x: " << currPos.x << " y: " << currPos.y << " z: " << currPos.z << std::endl;
+			std::cout << "endPos x: " << animator::endPos.x << " y: " << animator::endPos.y << " z: " << animator::endPos.z << std::endl;
+			std::cout << "diff x: " << diff.x << " y: " << diff.y << " z: " << diff.z << std::endl;
+		}
 
 		if (dist < 0.5) {
-			std::cout << "fixing pos" << std::endl;
+			// if prop is close enought to end possition then we artificialy
+			// fixate it to this possition so it always endup in proper place in space
+			if(showStatus) std::cout << "fixing pos" << std::endl;
 			transformation = diff;
 			animator::isAnimating = false;
 		}
 		else {
+			// otherwise we normalize vector to destination and multiply it as speed coefficient
 			transformation = glm::normalize(diff) * animator::speedCoeff(dist);
 		}
 
 		glm::vec3 modelAdjusted;
 
-		std::cout << objects::controllFilePath[figure].find("_b") << std::endl;
+		// std::cout << objects::controllFilePath[figure].find("_b") << std::endl;
+		// due this same reasons as animation need to be adjusted during animation difference vector (now model adjusted diff vector) new to be tweaked
 		if (objects::controllFilePath[figure].find("_b") != std::string::npos) modelAdjusted = glm::vec3(transformation.x, -transformation.z, transformation.y);
 		else modelAdjusted = glm::vec3(-transformation.x, transformation.z, transformation.y);
 
-
-
 		objects::M[figure] = glm::translate(objects::M[figure], modelAdjusted * animator::speedCoeff(dist));
-		std::cout << "animVec x: " << modelAdjusted.x << " y: " << modelAdjusted.y << " z: " << modelAdjusted.z << std::endl;
+		if(showStatus) std::cout << "animVec x: " << modelAdjusted.x << " y: " << modelAdjusted.y << " z: " << modelAdjusted.z << std::endl;
 	}
 
 	void makeRemoveAnimation() {
+		// animate to given position
 		objects::Figure figure = animator::steps[animator::stepsIterator].figure;
 		glm::vec4 currPos = objects::M[figure] * glm::vec4(1.0f);
 		glm::vec3 diff = glm::vec3(animator::endPos - currPos);
@@ -2701,12 +2742,14 @@ namespace debug {
 	}
 
 	void printAll() {
-		debug::printDelimiter();
-		debug::printObserver();
-		debug::printTotalRotation();
-		debug::printTotalYaw();
-		debug::printDistance();
-		debug::printFooter();
+		if (showStatus) {
+			debug::printDelimiter();
+			debug::printObserver();
+			debug::printTotalRotation();
+			debug::printTotalYaw();
+			debug::printDistance();
+			debug::printFooter();
+		}
 	}
 }
 
